@@ -1,7 +1,7 @@
 {
-  "name": "Planetary Construction Set",
-  "short_name": "Planets",
-  "description": "Build a planet, then see what kind of life it can support.",
+  "name": "School Games",
+  "short_name": "Games",
+  "description": "Classic educational computer games, rebuilt for your phone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

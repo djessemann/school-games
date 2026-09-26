@@ -1,8 +1,13 @@
 // Offline cache. The page itself is fetched fresh when online (so updates show
 // up right away) and falls back to the cached copy when offline. Icons and other
 // files are served from cache and refreshed in the background.
-const CACHE = 'planets-v2';
-const FILES = ['./', 'index.html', 'manifest.webmanifest', 'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png'];
+// One worker for the whole portal. When you add a game, add its page and icon here.
+const CACHE = 'games-v1';
+const FILES = [
+  './', 'index.html', 'manifest.webmanifest', 'shared/font.js',
+  'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png',
+  'planets/', 'planets/index.html', 'planets/icons/icon-192.png', 'planets/icons/favicon-32.png', 'planets/icons/apple-touch-icon.png',
+];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
@@ -19,7 +24,7 @@ self.addEventListener('fetch', e => {
   e.respondWith(caches.open(CACHE).then(async c => {
     const net = fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; });
     if (e.request.mode === 'navigate') {
-      return net.catch(async () => (await c.match(e.request, { ignoreSearch: true })) || c.match('index.html'));
+      return net.catch(async () => (await c.match(e.request, { ignoreSearch: true })) || c.match('./'));
     }
     const hit = await c.match(e.request, { ignoreSearch: true });
     if (hit) { e.waitUntil(net.catch(() => {})); return hit; }
