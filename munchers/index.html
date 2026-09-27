@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#d8d2c2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Games">
@@ -18,11 +18,9 @@
 <link rel="canonical" href="https://djessemann.github.io/school-games/munchers/">
 <style>
 :root {
-  --page: #000; --bezel: #111; --key-bg: #000; --key-edge: #fff; --key-ink: #fff; --key-down-bg: #fff; --key-down-ink: #000;
+  /* beige-gray computer case around the black screen, in light and dark mode alike */
+  --page: #d8d2c2; --bezel: #2b2823; --key-bg: #ece6d6; --key-edge: #2b2823; --key-ink: #2b2823; --key-down-bg: #2b2823; --key-down-ink: #ece6d6;
   --gap: 8px;
-}
-@media (prefers-color-scheme: light) {
-  :root { --page: #d8d2c2; --bezel: #2b2823; --key-bg: #ece6d6; --key-edge: #2b2823; --key-ink: #2b2823; --key-down-bg: #2b2823; --key-down-ink: #ece6d6; }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; overscroll-behavior: none; }
@@ -50,8 +48,7 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
 }
 .key canvas { display: block; image-rendering: pixelated; pointer-events: none; }
 .key.pressed { background: var(--key-down-bg); box-shadow: none; transform: translate(3px, 3px); }
-.key.pressed canvas { filter: invert(1); }
-@media (prefers-color-scheme: light) { .key.pressed canvas { filter: invert(1) sepia(.2); } }
+.key.pressed canvas { filter: invert(1) sepia(.2); }
 .key:focus-visible { outline: 2px dashed var(--key-ink); outline-offset: 3px; }
 .dpad { display: grid; gap: var(--gap); grid-template-areas: ". up ." "left . right" ". down ."; }
 .dpad .key { width: 66px; height: 58px; }
@@ -177,7 +174,6 @@ function labelKeys() {
     b.appendChild(glyphLabel(b.dataset.label, bar.includes(b) ? room * b.dataset.label.length / longest : 0));
   }
 }
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', labelKeys);
 function labelName() { const l = document.getElementById('nameLabel'); l.innerHTML = ''; l.appendChild(glyphLabel('Type your name, then OK')); }
 
 // ---------- the machine ----------
