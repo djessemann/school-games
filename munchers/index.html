@@ -107,7 +107,7 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
         <button class="key right" type="button" data-key="21" data-rep aria-label="Right" data-label="{"></button>
         <button class="key down" type="button" data-key="10" data-rep aria-label="Down" data-label="$"></button>
       </div>
-      <button id="munchKey" class="key" type="button" data-key="32" aria-label="Munch (space bar)" data-label="Munch"></button>
+      <button id="munchKey" class="key" type="button" data-key="32" aria-label="Munch" data-label="Munch"></button>
     </div>
     <form id="nameBox" hidden autocomplete="off">
       <div id="nameLabel" aria-hidden="true"></div>
@@ -120,7 +120,6 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
       <button id="gamesKey" class="key" type="button" aria-label="Back to all games" data-label="Games"></button>
       <button class="key" type="button" data-key="63" aria-label="Pause" data-label="Pause"></button>
       <button class="key" type="button" data-key="27,27" aria-label="Quit this game" data-label="Quit"></button>
-      <button class="key" type="button" data-key="13" aria-label="OK (Return)" data-label="OK"></button>
     </div>
   </div>
 </div>
@@ -216,6 +215,20 @@ function skipJoystickQuestion(dsk) {
   if (JOYSTICK_ASK.every((b, i) => dsk[at + i] === b)) dsk.set(NO_JOYSTICK, at);
 }
 
+// One big button does the job of both Space and Return, like it would have felt on the Apple:
+// the game's menu and Yes/No prompts wait for Return (they read the keyboard at these two spots);
+// everything else (munching, "Press SPACE BAR to continue") wants Space.
+const RETURN_READERS = new Set([0x1248, 0x1eb1]);
+const PLAY_READER = 0x9ad9;
+const munchKey = document.getElementById('munchKey');
+const bigKeyCode = () => RETURN_READERS.has(m.kbdPC) ? 13 : 32;
+function updateBigKey() {
+  const label = m.kbdPC === PLAY_READER && !m.halted ? 'Munch' : 'OK';
+  if (munchKey.dataset.label === label) return;
+  munchKey.dataset.label = label; munchKey.setAttribute('aria-label', label);
+  munchKey.innerHTML = ''; munchKey.appendChild(glyphLabel(label));
+}
+
 // the Hall of Fame asks the player to type a name; show a text box so the phone keyboard can do it
 const NAME_PROMPT = 1077539997;
 const nameBox = document.getElementById('nameBox'), nameInput = document.getElementById('nameInput'), dmain = document.getElementById('dmain');
@@ -287,6 +300,7 @@ function frame(now) {
   m.run(Math.round(dt * CPS / 1000));
   playSpeaker(c0, m.cpu.cycles);
   watchNamePrompt();
+  updateBigKey();
   if (m.halted) showHalt();
   if (++frames % 16 === 0) flash = !flash;
   m.render(idata.data, FONT, flash);
@@ -304,7 +318,8 @@ for (const b of document.querySelectorAll('.key:not(#nameOk)')) {
   const fire = () => {
     if (b.id === 'gamesKey') { location.href = '../'; return; }
     if (!m) return;
-    if (m.halted) { if (codes[0] === 13) location.reload(); return; }
+    if (m.halted) { if (b === munchKey) location.reload(); return; }
+    if (b === munchKey) { keyQ.length = 0; m.pressKey(bigKeyCode()); return; }
     if (codes.length === 1) { keyQ.length = 0; m.pressKey(codes[0]); } else send(...codes);
   };
   const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; b.classList.remove('pressed'); stops.delete(stop); };

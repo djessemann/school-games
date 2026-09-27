@@ -18,7 +18,7 @@ On iPhone: open the link in Safari, tap Share, then **Add to Home Screen**. It r
 This one runs the original Apple II disk (`munchers/munchers.dsk`) on a small emulator written for this site:
 `cpu6502.js` is the processor, `apple2.js` is the rest of the machine (memory, disk drive, keyboard, speaker, screen).
 It uses no Apple ROMs; the few built-in routines the game calls are rewritten in `apple2.js`.
-The on-screen controller sends the same keys the game expects: arrows, Space (Munch), ? (Pause), Escape twice (Quit), Return (OK).
+The on-screen controller sends the same keys the game expects: arrows, ? (Pause) and Escape twice (Quit). The big button is Space while playing and on "Press SPACE BAR" screens, and Return on the menu and Yes/No prompts; it tells them apart by where the game is reading the keyboard.
 Hall of Fame scores are saved in the browser. The game's "play with a joystick?" question is patched out when the disk loads, so it always uses the keyboard.
 
 ## Adding a game

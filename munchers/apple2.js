@@ -179,7 +179,7 @@
   };
   A.io = function (a, v, isWrite) {
     const lo = a & 0xff;
-    if (lo < 0x10) return this.key;
+    if (lo < 0x10) { if (!isWrite) this.kbdPC = this.cpu.pc; return this.key; }  // remember which code is reading the keyboard
     if (lo < 0x20) { const k = this.key; this.key &= 0x7f; return lo === 0x10 ? k : 0; }
     if (lo >= 0x30 && lo < 0x40) { this.spk.push(this.cpu.cycles); return 0; }
     switch (lo) {
@@ -205,7 +205,7 @@
     if (lo >= 0xe0) return this.disk.io(lo, v, isWrite);
     return 0;
   };
-  A.button0 = 0; A.button1 = 0;
+  A.button0 = 0; A.button1 = 0; A.kbdPC = 0;
 
   A.pressKey = function (c) { this.key = (c & 0x7f) | 0x80; };
 
