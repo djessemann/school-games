@@ -2,7 +2,7 @@
 // up right away) and falls back to the cached copy when offline. Icons and other
 // files are served from cache and refreshed in the background.
 // One worker for the whole portal. When you add a game, add its page and icon here.
-const CACHE = 'games-v5';
+const CACHE = 'games-v6';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
   'shared/font.js', 'shared/cpu6502.js', 'shared/apple2.js', 'shared/disk-game.js', 'shared/disk-game.css',
