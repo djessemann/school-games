@@ -127,8 +127,8 @@
     if (s === 0xc) {
       const tr = this.track();
       if (this.q7) {
-        // write mode: shift the latch out onto the disk
-        if (this.q6) { tr[this.pos] = this.latch; tr.written = true; this.dirty = true; }
+        // write mode: each shift puts the latched byte on the disk
+        tr[this.pos] = this.latch; tr.written = true; this.dirty = true;
         this.pos = (this.pos + 1) % tr.length;
         return 0;
       }
@@ -227,6 +227,11 @@
     // CROUT: LDA #$8D, JMP (CSW)
     put(0xfd8e, [0xa9, 0x8d, 0x6c, 0x36, 0x00]);
     put(0xff58, [0x60]);                               // IORTS
+    // PRNTYX / PRNTAX / PRNTX, PRBLNK / PRBL2 (print X blanks)
+    put(0xf940, [0x98, 0x20, 0xda, 0xfd, 0x8a, 0x4c, 0xda, 0xfd]);
+    put(0xf948, [0xa2, 0x03, 0xa9, 0xa0, 0x20, 0xed, 0xfd, 0xca, 0xd0, 0xf8, 0x60]);
+    // CROUT1: clear to end of line, then CROUT
+    put(0xfd8b, [0x20, 0x9c, 0xfc]);
     // IRQ handler: JMP ($03FE)
     put(0xfa40, [0x6c, 0xfe, 0x03]);
     const H = this.hle, m = this;
@@ -296,6 +301,7 @@
     H[0xfd1b] = c => { if (m.key & 0x80) { c.a = m.key; m.key &= 0x7f; rts(c); } else { c.cycles += 200; m.idle = true; } };
     H[0xfd35] = c => { c.pc = 0xfd0c; };                              // RDCHAR -> RDKEY
     H[0xfa62] = c => { m.halt('reset'); };
+    H[0xfb1e] = c => { c.y = 128; c.cycles += 1400; rts(c); };      // PREAD: no joystick, stick centered
     // boot ROM for slot 6
     H[0xc600] = c => {
       m.disk.motor = true; m.disk.ht = 0;
@@ -329,9 +335,12 @@
         if (pc < 0xd000 || !this.lcRead) {
           if (h) { h(c); if (this.idle) break; continue; }
           if (pc < 0xd000 || this.rom[pc - 0xd000] === 0) { this.halt('rom $' + pc.toString(16)); break; }
-        } else if (h && this.read(pc) === 0) {
-          // the monitor was copied into language-card RAM; our routines copy as empty bytes
+        } else if (h && this.read(pc) === this.rom[pc - 0xd000]) {
+          // the monitor was copied into language-card RAM; run our routine in place of the copy
           h(c); if (this.idle) break; continue;
+        } else if (pc >= 0xf800 && this.read(pc) === 0 && this.rom[pc - 0xd000] === 0) {
+          // a monitor routine we don't have, reached through the copy
+          this.halt('rom $' + pc.toString(16)); break;
         }
       }
       c.step();
