@@ -1,4 +1,4 @@
-// A small Apple II+ (48K + language card) for running one disk.
+// A small Apple II+ (48K + language card) with a Disk II card and one or two drives.
 // No Apple ROMs: the few monitor routines the software calls are done in JS (HLE) or tiny stubs.
 (function (root) {
   'use strict';
@@ -140,17 +140,75 @@
     return 0;
   };
 
+  // The card drives two disks; Q6/Q7, the data latch and the motor belong to the card, the head to each drive.
+  function DiskCard(drives) { this.drives = drives; this.cur = 0; }
+  DiskCard.prototype.io = function (a, v, isWrite) {
+    const s = a & 0x0f;
+    if (s === 0xa || s === 0xb) {
+      const next = s - 0xa;
+      if (next !== this.cur && this.drives[next]) {
+        const from = this.drives[this.cur], to = this.drives[next];
+        to.q6 = from.q6; to.q7 = from.q7; to.latch = from.latch; to.motor = from.motor;
+        from.motor = false; from.flush();
+        this.cur = next;
+      }
+      return 0;
+    }
+    return this.drives[this.cur].io(a, v, isWrite);
+  };
+
+  // ProDOS disks: block n lives in these two DOS-order sectors of its track
+  const BLOCK_HALVES = [[0, 14], [13, 12], [11, 10], [9, 8], [7, 6], [5, 4], [3, 2], [1, 15]];
+  function readBlock(dsk, b) {
+    const t = b >> 3, [h1, h2] = BLOCK_HALVES[b & 7], out = new Uint8Array(512);
+    out.set(dsk.subarray((t * 16 + h1) * 256, (t * 16 + h1 + 1) * 256), 0);
+    out.set(dsk.subarray((t * 16 + h2) * 256, (t * 16 + h2 + 1) * 256), 256);
+    return out;
+  }
+  // find a file in the volume directory and return its contents (seedling or sapling files)
+  function readProdosFile(dsk, wanted) {
+    for (let b = 2; b; ) {
+      const blk = readBlock(dsk, b);
+      for (let i = 0; i < 13; i++) {
+        const e = blk.subarray(4 + i * 39, 4 + (i + 1) * 39), st = e[0] >> 4, nl = e[0] & 15;
+        if (st < 1 || st > 2) continue;
+        const name = String.fromCharCode(...e.subarray(1, 1 + nl));
+        if (name !== wanted) continue;
+        const key = e[17] | e[18] << 8, eof = e[21] | e[22] << 8 | e[23] << 16;
+        const out = new Uint8Array(Math.ceil(eof / 512) * 512);
+        if (st === 1) out.set(readBlock(dsk, key).subarray(0, out.length));
+        else {
+          const idx = readBlock(dsk, key);
+          for (let k = 0; k * 512 < out.length; k++) { const bn = idx[k] | idx[256 + k] << 8; if (bn) out.set(readBlock(dsk, bn), k * 512); }
+        }
+        return out;
+      }
+      b = blk[2] | blk[3] << 8;
+    }
+    return null;
+  }
+
   // Disk II card ID bytes (the boot code itself is done in JS below)
   const SLOT6 = new Uint8Array(256);
   SLOT6[1] = 0x20; SLOT6[3] = 0x00; SLOT6[5] = 0x03; SLOT6[7] = 0x3c;
 
   // ---------- the machine ----------
-  function Apple2(dskBytes) {
+  // opts.model: 'ii+' (48K + language card, the default) or 'iie' (128K: an Apple IIe with the extended 80-column card)
+  function Apple2(dskBytes, dsk2Bytes, opts) {
+    this.iie = !!(opts && opts.model === 'iie');
     this.ram = new Uint8Array(0x10000);
     this.lcBank1 = new Uint8Array(0x1000); this.lcBank2 = new Uint8Array(0x1000); this.lcHigh = new Uint8Array(0x2000);
+    // the IIe's second 64K, with its own language-card RAM
+    this.aux = new Uint8Array(0x10000);
+    this.auxBank1 = new Uint8Array(0x1000); this.auxBank2 = new Uint8Array(0x1000); this.auxHigh = new Uint8Array(0x2000);
+    this.store80 = false; this.ramrd = false; this.ramwrt = false; this.altzp = false;
+    this.intcx = false; this.slotc3 = false; this.col80 = false; this.altchar = false; this.an3 = true;
     this.lcRead = false; this.lcWrite = false; this.lcPre = false; this.lcBank = 2;
     this.rom = new Uint8Array(0x3000); // $D000-$FFFF stubs
-    this.disk = new Disk(dskBytes);
+    this.drives = [new Disk(dskBytes)];
+    if (dsk2Bytes) this.drives.push(new Disk(dsk2Bytes));
+    this.disk = this.drives[0];
+    this.card = new DiskCard(this.drives);
     this.key = 0; this.text = true; this.mixed = false; this.page2 = false; this.hires = false;
     this.spk = []; this.halted = null; this.hle = {};
     this.cpu = new CPU(a => this.read(a), (a, v) => this.write(a, v));
@@ -158,29 +216,67 @@
   }
   const A = Apple2.prototype;
 
+  // which 64K a main-memory address ($0200-$BFFF) reaches right now
+  A.bank = function (a, isWrite) {
+    if (this.store80 && ((a >= 0x400 && a < 0x800) || (this.hires && a >= 0x2000 && a < 0x4000))) return this.page2 ? this.aux : this.ram;
+    return (isWrite ? this.ramwrt : this.ramrd) ? this.aux : this.ram;
+  };
+  A.lcMem = function (a) {
+    if (a >= 0xe000) return this.altzp ? this.auxHigh : this.lcHigh;
+    if (this.lcBank === 1) return this.altzp ? this.auxBank1 : this.lcBank1;
+    return this.altzp ? this.auxBank2 : this.lcBank2;
+  };
   A.read = function (a) {
-    if (a < 0xc000) return this.ram[a];
+    if (a < 0x200) return (this.altzp ? this.aux : this.ram)[a];
+    if (a < 0xc000) return this.bank(a, false)[a];
     if (a < 0xc100) return this.io(a, 0, false);
-    if (a < 0xd000) return (a >> 8) === 0xc6 ? SLOT6[a & 0xff] : 0;
-    if (this.lcRead) {
-      if (a < 0xe000) return (this.lcBank === 1 ? this.lcBank1 : this.lcBank2)[a - 0xd000];
-      return this.lcHigh[a - 0xe000];
-    }
+    if (a < 0xd000) return (a >> 8) === 0xc6 && !this.intcx ? SLOT6[a & 0xff] : 0;
+    if (this.lcRead) return this.lcMem(a)[a & (a >= 0xe000 ? 0x1fff : 0x0fff)];
     return this.rom[a - 0xd000];
   };
   A.write = function (a, v) {
-    if (a < 0xc000) { this.ram[a] = v; return; }
+    if (a < 0x200) { (this.altzp ? this.aux : this.ram)[a] = v; return; }
+    if (a < 0xc000) { this.bank(a, true)[a] = v; return; }
     if (a < 0xc100) { this.io(a, v, true); return; }
     if (a < 0xd000) return;
-    if (this.lcWrite) {
-      if (a < 0xe000) (this.lcBank === 1 ? this.lcBank1 : this.lcBank2)[a - 0xd000] = v;
-      else this.lcHigh[a - 0xe000] = v;
-    }
+    if (this.lcWrite) this.lcMem(a)[a & (a >= 0xe000 ? 0x1fff : 0x0fff)] = v;
   };
   A.io = function (a, v, isWrite) {
     const lo = a & 0xff;
-    if (lo < 0x10) { if (!isWrite) this.kbdPC = this.cpu.pc; return this.key; }  // remember which code is reading the keyboard
-    if (lo < 0x20) { const k = this.key; this.key &= 0x7f; return lo === 0x10 ? k : 0; }
+    if (lo < 0x10) {
+      if (isWrite && this.iie) {
+        // IIe memory and video switches
+        const on = !!(lo & 1);
+        switch (lo >> 1) {
+          case 0: this.store80 = on; break;
+          case 1: this.ramrd = on; break;
+          case 2: this.ramwrt = on; break;
+          case 3: this.intcx = on; break;
+          case 4: this.altzp = on; break;
+          case 5: this.slotc3 = on; break;
+          case 6: this.col80 = on; break;
+          case 7: this.altchar = on; break;
+        }
+        return 0;
+      }
+      if (!isWrite) {
+        // remember which code is reading the keyboard, and who called it (the JSR under the top of the stack)
+        this.kbdPC = this.cpu.pc;
+        const sp = this.cpu.s;
+        this.kbdCaller = ((this.read(0x100 | ((sp + 2) & 0xff)) << 8 | this.read(0x100 | ((sp + 1) & 0xff))) - 2) & 0xffff;
+      }
+      return this.key;
+    }
+    if (lo === 0x10) { const k = this.key; this.key &= 0x7f; return k; }
+    if (lo < 0x20) {
+      if (!this.iie) { this.key &= 0x7f; return 0; }
+      // IIe status: bit 7 is the switch, the rest is the last key
+      const k = this.key & 0x7f;
+      const vbl = (this.cpu.cycles % 17030) >= 12480;
+      const f = [0, this.lcBank === 2, this.lcRead, this.ramrd, this.ramwrt, this.intcx, this.altzp, this.slotc3,
+        this.store80, !vbl, this.text, this.mixed, this.page2, this.hires, this.altchar, this.col80][lo & 15];
+      return (f ? 0x80 : 0) | k;
+    }
     if (lo >= 0x30 && lo < 0x40) { this.spk.push(this.cpu.cycles); return 0; }
     switch (lo) {
       case 0x50: this.text = false; return 0;
@@ -191,8 +287,15 @@
       case 0x55: this.page2 = true; return 0;
       case 0x56: this.hires = false; return 0;
       case 0x57: this.hires = true; return 0;
+      case 0x5e: this.an3 = false; return 0;
+      case 0x5f: this.an3 = true; return 0;
     }
-    if (lo >= 0x60 && lo < 0x70) return lo === 0x61 ? this.button0 : lo === 0x62 ? this.button1 : 0; // buttons; paddles read as timed out
+    if (lo >= 0x70 && lo < 0x80) { this.paddleStart = this.cpu.cycles; return 0; }   // start the paddle timers
+    if (lo >= 0x64 && lo < 0x68) {
+      // joystick/paddles: no stick attached, so each axis reads as centered (timer runs ~128 * 11 cycles)
+      return this.cpu.cycles - this.paddleStart < 128 * 11 ? 0x80 : 0;
+    }
+    if (lo >= 0x60 && lo < 0x70) return lo === 0x61 ? this.button0 : lo === 0x62 ? this.button1 : 0; // buttons
     if (lo >= 0x80 && lo < 0x90) {
       // language card
       const s = lo & 0x0f;
@@ -202,10 +305,10 @@
       else { this.lcWrite = false; this.lcPre = false; }
       return 0;
     }
-    if (lo >= 0xe0) return this.disk.io(lo, v, isWrite);
+    if (lo >= 0xe0) return this.card.io(lo, v, isWrite);
     return 0;
   };
-  A.button0 = 0; A.button1 = 0; A.kbdPC = 0;
+  A.button0 = 0; A.button1 = 0; A.kbdPC = 0; A.kbdCaller = 0; A.paddleStart = -1e9;
 
   A.pressKey = function (c) { this.key = (c & 0x7f) | 0x80; };
 
@@ -216,6 +319,8 @@
     // Applesoft is "present" so DOS is happy; we take over when it jumps in
     put(0xe000, [0x4c, 0x28, 0xf1]);
     R[0xfbb3 - 0xd000] = 0xea; R[0xfb1e - 0xd000] = 0xad;         // II+ with Autostart ROM
+    if (this.iie) { R[0xfbb3 - 0xd000] = 0x06; R[0xfbc0 - 0xd000] = 0xea; }   // unenhanced IIe (still a 6502)
+    put(0xfb09, [...'APPLE ]['].map(ch => ch.charCodeAt(0) | 0x80));   // the ID text ProDOS looks for
     put(0xfffa, [0xfb, 0x03, 0x62, 0xfa, 0x40, 0xfa]); // NMI, RESET, IRQ
     put(0xfded, [0x6c, 0x36, 0x00]);                   // COUT: JMP (CSW)
     put(0xfd0c, [0x6c, 0x38, 0x00]);                   // RDKEY: JMP (KSW)
@@ -227,6 +332,7 @@
     // CROUT: LDA #$8D, JMP (CSW)
     put(0xfd8e, [0xa9, 0x8d, 0x6c, 0x36, 0x00]);
     put(0xff58, [0x60]);                               // IORTS
+    put(0xfe1f, [0x60]);                               // IDROUTINE: plain RTS (only a IIgs clears carry)
     // PRNTYX / PRNTAX / PRNTX, PRBLNK / PRBL2 (print X blanks)
     put(0xf940, [0x98, 0x20, 0xda, 0xfd, 0x8a, 0x4c, 0xda, 0xfd]);
     put(0xf948, [0xa2, 0x03, 0xa9, 0xa0, 0x20, 0xed, 0xfd, 0xca, 0xd0, 0xf8, 0x60]);
@@ -302,9 +408,35 @@
     H[0xfd35] = c => { c.pc = 0xfd0c; };                              // RDCHAR -> RDKEY
     H[0xfa62] = c => { m.halt('reset'); };
     H[0xfb1e] = c => { c.y = 128; c.cycles += 1400; rts(c); };      // PREAD: no joystick, stick centered
+    // IIe 80-column firmware helpers
+    H[0xc311] = c => {                                                 // AUXMOVE: carry set main->aux, clear aux->main
+      const rd = a => m.read(a);   // parameters are read through the memory currently switched in, as the ROM would
+      let src = rd(0x3c) | rd(0x3d) << 8; const end = rd(0x3e) | rd(0x3f) << 8; let dst = rd(0x42) | rd(0x43) << 8;
+      const from = (c.p & 1) ? m.ram : m.aux, to = (c.p & 1) ? m.aux : m.ram;
+      for (;;) { to[dst] = from[src]; if (src >= end) break; src = (src + 1) & 0xffff; dst = (dst + 1) & 0xffff; }
+      rts(c);
+    };
+    H[0xc314] = c => {                                                 // XFER: jump to ($3ED) in main or aux memory
+      const target = m.read(0x3ed) | m.read(0x3ee) << 8;
+      m.ramrd = m.ramwrt = !!(c.p & 1);
+      m.altzp = !!(c.p & 0x40);
+      c.pc = target;
+    };
     // boot ROM for slot 6
     H[0xc600] = c => {
-      m.disk.motor = true; m.disk.ht = 0;
+      m.disk.motor = true; m.disk.ht = 0; m.card.cur = 0;
+      // A ProDOS disk's boot block copies code out of the card's ROM, which we don't have.
+      // Do its job instead: load the PRODOS file to $2000 and start it, as the boot block would.
+      const d = m.disk.dsk;
+      if (d[0] === 0x01 && d[1] === 0x38 && d[2] === 0xb0 && d[3] === 0x03) {
+        const pro = readProdosFile(d, 'PRODOS');
+        if (pro) {
+          m.ram.set(pro.subarray(0, Math.min(pro.length, 0xbf00 - 0x2000)), 0x2000);
+          ram[0x43] = 0x60; ram[0x2b] = 0x60;   // booted from slot 6, drive 1
+          c.x = 0x60; c.pc = 0x2000;
+          return;
+        }
+      }
       ram[0x26] = 0; ram[0x27] = 8; ram[0x3d] = 0; ram[0x41] = 0; ram[0x2b] = 0x60;
       c.x = 0x60; c.pc = 0xc65c;
     };
@@ -314,7 +446,7 @@
         for (let i = 0; i < 256; i++) ram[(dst + i) & 0xffff] = m.disk.dsk[off + i];
         ram[0x27]++; ram[0x3d]++;
       } while (ram[0x3d] < ram[0x800]);
-      c.x = ram[0x2b]; c.pc = 0x801;
+      c.x = ram[0x2b]; c.a = ram[0x3d]; c.pc = 0x801;   // like the real ROM: A holds the next sector number (ProDOS's loader checks it)
     };
   };
 
@@ -369,7 +501,7 @@
     const textFrom = this.text ? 0 : this.mixed ? 20 : 24;
     if (!this.text) {
       if (this.hires) {
-        const base = this.page2 ? 0x4000 : 0x2000;
+        const base = this.page2 && !this.store80 ? 0x4000 : 0x2000;   // with 80STORE on, PAGE2 picks memory, not the shown page
         const colAt = (x, p) => (x & 1) === 0 ? (p ? 'b' : 'v') : (p ? 'o' : 'g');
         for (let y = 0; y < textFrom * 8; y++) {
           const row = base + (y & 7) * 0x400 + ((y >> 3) & 7) * 0x80 + (y >> 6) * 0x28;
@@ -388,14 +520,14 @@
       } else {
         // lo-res: 16 colors
         const LORES = [[0, 0, 0], [227, 30, 96], [96, 78, 189], [255, 68, 253], [0, 163, 96], [156, 156, 156], [20, 207, 253], [208, 195, 255], [96, 114, 3], [255, 106, 60], [156, 156, 156], [255, 160, 208], [20, 245, 60], [208, 221, 141], [114, 255, 208], [255, 255, 255]];
-        const base = this.page2 ? 0x800 : 0x400;
+        const base = this.page2 && !this.store80 ? 0x800 : 0x400;
         for (let r = 0; r < textFrom; r++) for (let c = 0; c < 40; c++) {
           const b = ram[base + TEXT_ROW(r) - 0x400 + c];
           for (let h = 0; h < 2; h++) { const q = LORES[h ? b >> 4 : b & 15]; for (let yy = 0; yy < 4; yy++) for (let xx = 0; xx < 7; xx++) put(c * 7 + xx, r * 8 + h * 4 + yy, q); }
         }
       }
     }
-    const tbase = this.page2 ? 0x800 : 0x400;
+    const tbase = this.page2 && !this.store80 ? 0x800 : 0x400;
     for (let r = textFrom; r < 24; r++) for (let c = 0; c < 40; c++) {
       const code = ram[tbase + TEXT_ROW(r) - 0x400 + c];
       let ch, inv = false;

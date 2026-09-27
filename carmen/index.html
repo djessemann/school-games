@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#d8d2c2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Games">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<title>Where in the World Is Carmen Sandiego?</title>
+<meta name="description" content="Chase Carmen's gang around the world, one clue at a time. The 1985 Broderbund classic, on your phone.">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://djessemann.github.io/school-games/carmen/">
+<link rel="stylesheet" href="../shared/disk-game.css">
+<style>
+/* Yes / No, in the space the arrow pad uses, for the game's (Y/N) questions */
+.yesno { align-self: stretch; display: grid; gap: var(--gap); grid-template-columns: 1fr 1fr; }
+.yesno .key { height: calc(var(--pad-key-h) * 2); min-width: 0; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="screenwrap"><canvas id="screen" width="280" height="192" aria-label="Game screen"></canvas></div>
+  <div id="deck">
+    <div id="dmain">
+      <div class="dpad">
+        <button class="key up" type="button" data-key="11" data-rep aria-label="Up" data-label="#"></button>
+        <button class="key left" type="button" data-key="8" data-rep aria-label="Left" data-label="&"></button>
+        <button class="key right" type="button" data-key="21" data-rep aria-label="Right" data-label="{"></button>
+        <button class="key down" type="button" data-key="10" data-rep aria-label="Down" data-label="$"></button>
+      </div>
+      <div class="yesno" hidden>
+        <button class="key" type="button" data-group="yn" data-key="89,13" aria-label="Yes" data-label="Yes"></button>
+        <button class="key" type="button" data-group="yn" data-key="78,13" aria-label="No" data-label="No"></button>
+      </div>
+      <button id="bigKey" class="key" type="button" aria-label="OK" data-label="OK"></button>
+    </div>
+    <form id="nameBox" hidden autocomplete="off">
+      <div id="nameLabel" aria-hidden="true"></div>
+      <div class="row">
+        <input id="nameInput" type="text" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" aria-label="Your detective name">
+        <button id="nameOk" class="key" type="submit" aria-label="OK" data-label="OK"></button>
+      </div>
+    </form>
+    <div id="dbar" data-row>
+      <button id="gamesKey" class="key" type="button" aria-label="Back to all games" data-label="Games"></button>
+      <button class="key" type="button" data-key="27" aria-label="Back" data-label="Back"></button>
+    </div>
+  </div>
+</div>
+<script src="../shared/font.js"></script>
+<script src="../shared/cpu6502.js"></script>
+<script src="../shared/apple2.js"></script>
+<script src="../shared/disk-game.js"></script>
+<script>
+'use strict';
+// The game waits for keys in one routine; who called it says what kind of answer it wants.
+const ASK_NAME = 0x6097;      // "Detective at keyboard, please identify yourself"
+const ASK_YES_NO = 0x8124;    // any (Y/N) question
+const TYPING = 0x84ad;        // the teletype is still printing (it checks for keys between letters)
+// Everything else is a highlighted list (arrows move, Return picks, Escape backs out)
+// or "Press a key or button to continue", and Return does both.
+
+const dpad = document.querySelector('.dpad'), yesno = document.querySelector('.yesno');
+let fastForward = false;
+DiskGame.start({
+  disks: ['side-a.dsk', 'side-b.dsk'],   // both sides at once, so there's no disk flipping
+  model: 'iie',                          // the game needs 128K
+  saveKey: 'carmen-disk',
+  // OK is Return. While the teletype is still printing, OK instead fast-forwards to the end of the text
+  // (the machine runs faster; the game itself sees nothing different).
+  bigKey: m => m.kbdPC === TYPING ? { label: 'OK', press() { fastForward = true; } } : { code: 13, label: 'OK' },
+  speed: m => {
+    if (fastForward && m.kbdPC !== TYPING) fastForward = false;
+    return fastForward ? 6 : 1;
+  },
+  namePrompt: m => m.kbdCaller === ASK_NAME,
+  // for a (Y/N) question the arrow pad makes way for Yes and No
+  onFrame(m) {
+    const asking = m.kbdCaller === ASK_YES_NO;
+    if (asking === yesno.hidden) {
+      yesno.hidden = !asking; dpad.hidden = asking;
+      DiskGame.labelKeys();
+    }
+  },
+});
+</script>
+</body>
+</html>

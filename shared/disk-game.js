@@ -2,12 +2,15 @@
 // Shared by the disk games; each page supplies its deck markup and a small config:
 //
 //   DiskGame.start({
-//     disk: 'game.dsk',            // disk image next to the page
-//     saveKey: 'game-disk',        // where changed sectors (high scores) are kept in the browser
+//     disk: 'game.dsk',            // disk image next to the page (or disks: ['side-a.dsk', 'side-b.dsk'] for two drives)
+//     model: 'ii+',                // or 'iie' for games that need 128K
+//     saveKey: 'game-disk',        // where changed sectors (high scores, saved games) are kept in the browser
 //     patch(dsk) {},               // optional: change the disk before it boots
 //     bigKey(m) { return { code: 13, label: 'OK' }; },   // what the big bar sends right now
 //     namePrompt(m) { return false; },  // true while the game waits for a typed name
 //     onFrame(m) {},               // optional: per-frame hook, e.g. to switch deck layouts
+//     speed(m) { return 1; },      // optional: run the machine faster for a while (fast-forward)
+//   bigKey may also return { press(m) {} } to do something other than send a key.
 //   });
 //
 // Deck markup: any .key with data-key="codes" (comma list) sends those keys; data-rep repeats while held;
@@ -16,7 +19,7 @@
   'use strict';
   const FONT = Uint8Array.from(atob(FONT_B64), c => c.charCodeAt(0));
   const CPS = 1023000;   // Apple II clock
-  let cfg = null, m = null, orig = null;
+  let cfg = null, m = null, origs = [];
   const keyQ = [];
   const send = (...codes) => { keyQ.push(...codes); };
   const $ = id => document.getElementById(id);
@@ -77,17 +80,18 @@
   }
 
   // ---------- saved disk changes (high scores) ----------
-  function saveDisk(dsk) {
-    const changed = {};
+  const saveKeyFor = i => i ? cfg.saveKey + '-' + (i + 1) : cfg.saveKey;
+  function saveDisk(dsk, i) {
+    const changed = {}, base = origs[i];
     for (let s = 0; s < 560; s++) {
       const o = s * 256;
-      for (let i = 0; i < 256; i++) if (dsk[o + i] !== orig[o + i]) { changed[s] = btoa(String.fromCharCode(...dsk.subarray(o, o + 256))); break; }
+      for (let k = 0; k < 256; k++) if (dsk[o + k] !== base[o + k]) { changed[s] = btoa(String.fromCharCode(...dsk.subarray(o, o + 256))); break; }
     }
-    try { localStorage.setItem(cfg.saveKey, JSON.stringify(changed)); } catch (e) {}
+    try { localStorage.setItem(saveKeyFor(i), JSON.stringify(changed)); } catch (e) {}
   }
-  function loadSaved(dsk) {
+  function loadSaved(dsk, i) {
     try {
-      const changed = JSON.parse(localStorage.getItem(cfg.saveKey) || '{}');
+      const changed = JSON.parse(localStorage.getItem(saveKeyFor(i)) || '{}');
       for (const s in changed) dsk.set(Uint8Array.from(atob(changed[s]), c => c.charCodeAt(0)), s * 256);
     } catch (e) {}
   }
@@ -174,9 +178,9 @@
     if (!m) return;
     const dt = last ? Math.min(100, now - last) : 16.7; last = now;
     if (keyQ.length && !(m.key & 0x80)) m.pressKey(keyQ.shift());
-    const c0 = m.cpu.cycles;
-    m.run(Math.round(dt * CPS / 1000));
-    playSpeaker(c0, m.cpu.cycles);
+    const c0 = m.cpu.cycles, speed = cfg.speed ? cfg.speed(m) : 1;
+    m.run(Math.round(dt * CPS / 1000 * speed));
+    if (speed === 1) playSpeaker(c0, m.cpu.cycles); else m.spk.length = 0;   // fast-forward runs silent
     if (m.halted) showHalt();
     watchNamePrompt();
     if (cfg.onFrame && !m.halted) cfg.onFrame(m);
@@ -199,7 +203,7 @@
         if (b.id === 'gamesKey') { location.href = '../'; return; }
         if (!m) return;
         if (m.halted) { if (b === bigKey) location.reload(); return; }
-        if (b === bigKey) { keyQ.length = 0; m.pressKey(cfg.bigKey(m).code); return; }
+        if (b === bigKey) { const k = cfg.bigKey(m); if (k.press) k.press(m); else { keyQ.length = 0; m.pressKey(k.code); } return; }
         if (codes.length === 1) { keyQ.length = 0; m.pressKey(codes[0]); } else send(...codes);
       };
       const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; b.classList.remove('pressed'); stops.delete(stop); };
@@ -237,13 +241,14 @@
     window.addEventListener('resize', layout);
     layout();
     requestAnimationFrame(frame);
-    fetch(cfg.disk).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(buf => {
-      const dsk = new Uint8Array(buf);
-      if (cfg.patch) cfg.patch(dsk);
-      orig = dsk.slice();
-      loadSaved(dsk);
-      m = new Apple2(dsk);
-      m.disk.onWrite = saveDisk;
+    const paths = [].concat(cfg.disks || cfg.disk);
+    Promise.all(paths.map(p => fetch(p).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }))).then(bufs => {
+      const dsks = bufs.map(b => new Uint8Array(b));
+      if (cfg.patch) cfg.patch(dsks[0], dsks);
+      origs = dsks.map(d => d.slice());
+      dsks.forEach((d, i) => loadSaved(d, i));
+      m = new Apple2(dsks[0], dsks[1], { model: cfg.model });
+      m.drives.forEach((d, i) => { d.onWrite = dsk => saveDisk(dsk, i); });
       m.boot();
       window.m = m;   // handy for poking at it from the console
     }).catch(() => {
