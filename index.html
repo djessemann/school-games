@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#000000">
+<meta name="theme-color" content="#d8d2c2">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Games">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="format-detection" content="telephone=no">
 <title>School Games</title>
 <meta name="description" content="Classic educational computer games, rebuilt for your phone.">
@@ -28,11 +28,9 @@
 <style>
 /* same look as the games: black screen in a bezel, square keys with hard shadows */
 :root {
-  --page: #000; --bezel: #111; --key-bg: #000; --key-edge: #fff; --key-ink: #fff; --key-down-bg: #fff; --key-down-ink: #000;
+  /* beige-gray computer case around the black screen, in light and dark mode alike (same as the games) */
+  --page: #d8d2c2; --bezel: #2b2823; --key-bg: #ece6d6; --key-edge: #2b2823; --key-ink: #2b2823; --key-down-bg: #2b2823; --key-down-ink: #ece6d6;
   --gap: 8px;
-}
-@media (prefers-color-scheme: light) {
-  :root { --page: #d8d2c2; --bezel: #2b2823; --key-bg: #ece6d6; --key-edge: #2b2823; --key-ink: #2b2823; --key-down-bg: #2b2823; --key-down-ink: #ece6d6; }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; overscroll-behavior: none; }
@@ -61,9 +59,8 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
 .game .label { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .game canvas { display: block; image-rendering: pixelated; pointer-events: none; }
 .game.pressed { background: var(--key-down-bg); box-shadow: none; transform: translate(3px, 3px); }
-.game.pressed canvas { filter: invert(1); }
+.game.pressed canvas { filter: invert(1) sepia(.2); }
 .game:focus-visible { outline: 2px dashed var(--key-ink); outline-offset: 3px; }
-@media (prefers-color-scheme: light) { .game.pressed canvas { filter: invert(1) sepia(.2); } }
 /* landscape: list to the right of the screen */
 @media (orientation: landscape) {
   #app { flex-direction: row; padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap)); }
@@ -183,7 +180,6 @@ window.addEventListener('resize', () => {
   const w = document.getElementById('list').clientWidth;
   if (w !== lastW) { lastW = w; buildList(); }
 });
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', buildList);
 document.addEventListener('gesturestart', e => e.preventDefault());
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   navigator.serviceWorker.register('sw.js').catch(() => {});
