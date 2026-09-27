@@ -19,7 +19,7 @@ This one runs the original Apple II disk (`munchers/munchers.dsk`) on a small em
 `cpu6502.js` is the processor, `apple2.js` is the rest of the machine (memory, disk drive, keyboard, speaker, screen).
 It uses no Apple ROMs; the few built-in routines the game calls are rewritten in `apple2.js`.
 The on-screen controller sends the same keys the game expects: arrows, Space (Munch), ? (Pause), Escape twice (Quit), Return (OK).
-Hall of Fame scores are saved in the browser.
+Hall of Fame scores are saved in the browser. The game's "play with a joystick?" question is patched out when the disk loads, so it always uses the keyboard.
 
 ## Adding a game
 
