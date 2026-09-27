@@ -1,0 +1,75 @@
+/* Page look shared by the games that run an Apple II disk: a beige-gray computer case,
+   the black screen in a dark bezel, and square keys with hard shadows. */
+:root {
+  --page: #d8d2c2; --bezel: #2b2823; --key-bg: #ece6d6; --key-edge: #2b2823; --key-ink: #2b2823; --key-down-bg: #2b2823; --key-down-ink: #ece6d6;
+  --gap: 8px; --pad-key-w: 66px; --pad-key-h: 58px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; overscroll-behavior: none; }
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+#app {
+  position: fixed; inset: 0; display: flex; flex-direction: column;
+  padding: calc(env(safe-area-inset-top, 0px) + var(--gap) + 6px) calc(env(safe-area-inset-right, 0px) + var(--gap))
+           calc(env(safe-area-inset-bottom, 0px) + var(--gap)) calc(env(safe-area-inset-left, 0px) + var(--gap));
+  gap: var(--gap);
+}
+#screenwrap {
+  flex: 0 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
+  background: #000; border: 6px solid var(--bezel); height: calc((100vw - 28px) * 192 / 280 + 12px); max-height: 56vh;
+}
+#screen { display: block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
+#deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--gap); }
+#dmain { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: calc(var(--gap) * 2); }
+#dbar { flex: 0 0 auto; display: flex; gap: var(--gap); }
+#dbar .key { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
+#gamesKey { margin-right: calc(3px + var(--gap)); }
+[hidden] { display: none !important; }
+.key {
+  display: flex; align-items: center; justify-content: center; min-width: 52px; min-height: 52px; padding: 6px 10px;
+  background: var(--key-bg); border: 2px solid var(--key-edge); border-radius: 0; color: var(--key-ink); cursor: pointer;
+  box-shadow: 3px 3px 0 var(--key-edge); font: inherit; margin: 0 3px 3px 0;
+}
+.key canvas { display: block; image-rendering: pixelated; pointer-events: none; }
+.key.pressed { background: var(--key-down-bg); box-shadow: none; transform: translate(3px, 3px); }
+.key.pressed canvas { filter: invert(1) sepia(.2); }
+.key:focus-visible { outline: 2px dashed var(--key-ink); outline-offset: 3px; }
+/* the arrow pad */
+.dpad { display: grid; gap: var(--gap); grid-template-areas: ". up ." "left . right" ". down ."; }
+.dpad .key { width: var(--pad-key-w); height: var(--pad-key-h); }
+.up { grid-area: up; } .down { grid-area: down; } .left { grid-area: left; } .right { grid-area: right; }
+/* the big bar under the pad (Munch / OK) */
+#bigKey { align-self: stretch; height: var(--pad-key-h); }
+/* landscape: controls to the right of the screen */
+@media (orientation: landscape) {
+  #app { flex-direction: row; padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap)); }
+  #screenwrap { flex: 1 1 auto; height: auto; max-height: none; }
+  #deck { flex: 0 0 min(360px, 45vw); }
+  #dmain { gap: var(--gap); }
+  :root { --pad-key-w: 60px; --pad-key-h: 50px; }
+}
+@media (orientation: landscape) and (max-height: 420px) {
+  :root { --pad-key-w: 56px; --pad-key-h: 42px; }
+  .key { min-height: 40px; }
+  .dpad { gap: 6px; }
+  #bigKey { height: 44px; }
+  #dbar .key { min-height: 44px; }
+}
+@media (orientation: portrait) and (min-height: 701px) {
+  #app { padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap) + 28px); }
+  :root { --pad-key-w: 74px; --pad-key-h: 62px; }
+}
+@media (orientation: portrait) and (max-height: 700px) {
+  :root { --pad-key-h: 48px; }
+  .dpad { gap: 6px; }
+  #bigKey { height: 50px; }
+  .key { min-height: 46px; }
+}
+/* name entry for a high-score list: the phone's own keyboard stands in for the Apple's */
+#nameBox { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: calc(var(--gap) * 2); }
+#nameBox .row { display: flex; gap: var(--gap); }
+#nameInput {
+  flex: 1 1 auto; min-width: 0; height: 58px; padding: 0 12px; font: 22px/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
+  background: var(--key-bg); color: var(--key-ink); border: 2px solid var(--key-edge); border-radius: 0; box-shadow: 3px 3px 0 var(--key-edge); margin: 0 3px 3px 0;
+}
+#nameInput:focus { outline: 2px dashed var(--key-ink); outline-offset: 3px; }
+#nameOk { flex: 0 0 auto; height: 58px; }

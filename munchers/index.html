@@ -16,82 +16,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
 <link rel="canonical" href="https://djessemann.github.io/school-games/munchers/">
-<style>
-:root {
-  /* beige-gray computer case around the black screen, in light and dark mode alike */
-  --page: #d8d2c2; --bezel: #2b2823; --key-bg: #ece6d6; --key-edge: #2b2823; --key-ink: #2b2823; --key-down-bg: #2b2823; --key-down-ink: #ece6d6;
-  --gap: 8px;
-}
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; overscroll-behavior: none; }
-body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
-#app {
-  position: fixed; inset: 0; display: flex; flex-direction: column;
-  padding: calc(env(safe-area-inset-top, 0px) + var(--gap) + 6px) calc(env(safe-area-inset-right, 0px) + var(--gap))
-           calc(env(safe-area-inset-bottom, 0px) + var(--gap)) calc(env(safe-area-inset-left, 0px) + var(--gap));
-  gap: var(--gap);
-}
-#screenwrap {
-  flex: 0 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
-  background: #000; border: 6px solid var(--bezel); height: calc((100vw - 28px) * 192 / 280 + 12px); max-height: 56vh;
-}
-#screen { display: block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
-#deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--gap); }
-#dmain { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: calc(var(--gap) * 2); }
-#dbar { flex: 0 0 auto; display: flex; gap: var(--gap); }
-#dbar .key { flex: 1 1 0; min-width: 0; padding-left: 4px; padding-right: 4px; }
-#gamesKey { margin-right: calc(3px + var(--gap)); }
-.key {
-  display: flex; align-items: center; justify-content: center; min-width: 52px; min-height: 52px; padding: 6px 10px;
-  background: var(--key-bg); border: 2px solid var(--key-edge); border-radius: 0; color: var(--key-ink); cursor: pointer;
-  box-shadow: 3px 3px 0 var(--key-edge); font: inherit; margin: 0 3px 3px 0;
-}
-.key canvas { display: block; image-rendering: pixelated; pointer-events: none; }
-.key.pressed { background: var(--key-down-bg); box-shadow: none; transform: translate(3px, 3px); }
-.key.pressed canvas { filter: invert(1) sepia(.2); }
-.key:focus-visible { outline: 2px dashed var(--key-ink); outline-offset: 3px; }
-.dpad { display: grid; gap: var(--gap); grid-template-areas: ". up ." "left . right" ". down ."; }
-.dpad .key { width: 66px; height: 58px; }
-.dpad .up { grid-area: up; } .dpad .down { grid-area: down; } .dpad .left { grid-area: left; } .dpad .right { grid-area: right; }
-#munchKey { align-self: stretch; height: 58px; }
-/* landscape: controls to the right of the screen */
-@media (orientation: landscape) {
-  #app { flex-direction: row; padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap)); }
-  #screenwrap { flex: 1 1 auto; height: auto; max-height: none; }
-  #deck { flex: 0 0 min(360px, 45vw); }
-  #dmain { gap: var(--gap); }
-  .dpad .key { width: 60px; height: 50px; }
-  #munchKey { height: 50px; }
-}
-@media (orientation: landscape) and (max-height: 420px) {
-  .key { min-height: 40px; }
-  .dpad { gap: 6px; }
-  .dpad .key { width: 56px; height: 42px; }
-  #munchKey { height: 44px; }
-  #dbar .key { min-height: 44px; }
-}
-@media (orientation: portrait) and (min-height: 701px) {
-  #app { padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap) + 28px); }
-  .dpad .key { width: 74px; height: 62px; }
-  #munchKey { height: 62px; }
-}
-@media (orientation: portrait) and (max-height: 700px) {
-  .dpad { gap: 6px; }
-  .dpad .key { height: 48px; }
-  #munchKey { height: 50px; }
-  .key { min-height: 46px; }
-}
-/* name entry for the Hall of Fame: the phone's own keyboard stands in for the Apple's */
-#nameBox { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; gap: calc(var(--gap) * 2); }
-#nameBox[hidden], #dmain[hidden] { display: none; }
-#nameBox .row { display: flex; gap: var(--gap); }
-#nameInput {
-  flex: 1 1 auto; min-width: 0; height: 58px; padding: 0 12px; font: 22px/1 ui-monospace, Menlo, monospace; text-transform: uppercase;
-  background: var(--key-bg); color: var(--key-ink); border: 2px solid var(--key-edge); border-radius: 0; box-shadow: 3px 3px 0 var(--key-edge); margin: 0 3px 3px 0;
-}
-#nameInput:focus { outline: 2px dashed var(--key-ink); outline-offset: 3px; }
-#nameOk { flex: 0 0 auto; height: 58px; }
-</style>
+<link rel="stylesheet" href="../shared/disk-game.css">
 </head>
 <body>
 <div id="app">
@@ -104,7 +29,7 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
         <button class="key right" type="button" data-key="21" data-rep aria-label="Right" data-label="{"></button>
         <button class="key down" type="button" data-key="10" data-rep aria-label="Down" data-label="$"></button>
       </div>
-      <button id="munchKey" class="key" type="button" data-key="32" aria-label="Munch" data-label="Munch"></button>
+      <button id="bigKey" class="key" type="button" aria-label="Munch" data-label="Munch"></button>
     </div>
     <form id="nameBox" hidden autocomplete="off">
       <div id="nameLabel" aria-hidden="true"></div>
@@ -113,7 +38,7 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
         <button id="nameOk" class="key" type="submit" aria-label="OK" data-label="OK"></button>
       </div>
     </form>
-    <div id="dbar">
+    <div id="dbar" data-row>
       <button id="gamesKey" class="key" type="button" aria-label="Back to all games" data-label="Games"></button>
       <button class="key" type="button" data-key="63" aria-label="Pause" data-label="Pause"></button>
       <button class="key" type="button" data-key="27,27" aria-label="Quit this game" data-label="Quit"></button>
@@ -121,253 +46,33 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
   </div>
 </div>
 <script src="../shared/font.js"></script>
-<script src="cpu6502.js"></script>
-<script src="apple2.js"></script>
+<script src="../shared/cpu6502.js"></script>
+<script src="../shared/apple2.js"></script>
+<script src="../shared/disk-game.js"></script>
 <script>
 'use strict';
-const FONT = Uint8Array.from(atob(FONT_B64), c => c.charCodeAt(0));
-const CPS = 1023000;               // Apple II clock
-const DISK_KEY = 'munchers-disk';  // saved Hall of Fame (changed disk sectors)
+// Where the game reads the keyboard tells us what it is waiting for:
+const READ_MENU = 0x1248, READ_YES_NO = 0x1eb1;   // main menu and Yes/No prompts: Return picks
+const READ_PLAY = 0x9ad9;                         // playing: Space munches
+const READ_NAME = 0x8374;                         // Hall of Fame name entry
+// ("Press SPACE BAR to continue" screens read elsewhere and want Space.)
 
-// ---------- screen ----------
-const cv = document.getElementById('screen'), cx = cv.getContext('2d');
-const off = document.createElement('canvas'); off.width = 280; off.height = 192;
-const offx = off.getContext('2d'), idata = offx.createImageData(280, 192);
-function layout() {
-  const dpr = window.devicePixelRatio || 1;
-  const wrap = document.getElementById('screenwrap');
-  const r = wrap.getBoundingClientRect();
-  const bw = parseFloat(getComputedStyle(wrap).borderLeftWidth) * 2 || 0;
-  const aw = Math.max(100, r.width - bw), ah = Math.max(80, r.height - bw);
-  // device-pixel scale that fits; snap to a whole number when that costs little space
-  let s = Math.min(aw * dpr / 280, ah * dpr / 192);
-  if (s - Math.floor(s) < 0.2 && s >= 1) s = Math.floor(s);
-  const W = Math.round(280 * s), H = Math.round(192 * s);
-  if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
-  cv.style.width = (W / dpr) + 'px'; cv.style.height = (H / dpr) + 'px';
-  labelKeys(); labelName();
-}
-
-// ---------- key labels, drawn in the Apple II font ----------
-function ink() { return getComputedStyle(document.documentElement).getPropertyValue('--key-ink').trim() || '#fff'; }
-function glyphLabel(text, maxW) {
-  const dpr = window.devicePixelRatio || 1;
-  let k = Math.round(2 * dpr);
-  if (maxW) k = Math.max(1, Math.min(k, Math.floor(maxW * dpr / (text.length * 7))));
-  const c = document.createElement('canvas');
-  c.width = text.length * 7 * k; c.height = 8 * k;
-  c.style.width = (c.width / dpr) + 'px'; c.style.height = (c.height / dpr) + 'px';
-  const g = c.getContext('2d'); g.fillStyle = ink();
-  [...text].forEach((ch, i) => {
-    const gi = (ch.charCodeAt(0) - 32) * 8;
-    for (let r = 0; r < 8; r++) { const b = FONT[gi + r]; for (let p = 0; p < 7; p++) if (b >> p & 1) g.fillRect((i * 7 + p) * k, r * k, k, k); }
-  });
-  return c;
-}
-function labelKeys() {
-  // bottom-bar labels share one size: the largest that fits the longest label
-  const bar = [...document.querySelectorAll('#dbar .key')];
-  const longest = Math.max(...bar.map(b => b.dataset.label.length));
-  const room = Math.min(...bar.map(b => b.clientWidth - 12));
-  for (const b of document.querySelectorAll('.key')) {
-    b.innerHTML = '';
-    b.appendChild(glyphLabel(b.dataset.label, bar.includes(b) ? room * b.dataset.label.length / longest : 0));
-  }
-}
-function labelName() { const l = document.getElementById('nameLabel'); l.innerHTML = ''; l.appendChild(glyphLabel('Type your name, then OK')); }
-
-// ---------- the machine ----------
-let m = null, orig = null;
-const keyQ = [];
-function send(...codes) { keyQ.push(...codes); }
-
-function saveDisk(dsk) {
-  const changed = {};
-  for (let s = 0; s < 560; s++) {
-    const o = s * 256;
-    for (let i = 0; i < 256; i++) if (dsk[o + i] !== orig[o + i]) { changed[s] = btoa(String.fromCharCode(...dsk.subarray(o, o + 256))); break; }
-  }
-  try { localStorage.setItem(DISK_KEY, JSON.stringify(changed)); } catch (e) {}
-}
-function loadSaved(dsk) {
-  try {
-    const changed = JSON.parse(localStorage.getItem(DISK_KEY) || '{}');
-    for (const s in changed) dsk.set(Uint8Array.from(atob(changed[s]), c => c.charCodeAt(0)), s * 256);
-  } catch (e) {}
-}
-
-// compare a band of hi-res rows on the shown page, to recognize a screen
-function screenPrint(y0, y1) {
-  const base = m.page2 ? 0x4000 : 0x2000; let h = 0;
-  for (let y = y0; y < y1; y++) { const row = base + (y & 7) * 0x400 + ((y >> 3) & 7) * 0x80 + (y >> 6) * 0x28; for (let c = 0; c < 40; c++) h = (h * 31 + m.ram[row + c]) >>> 0; }
-  return h;
-}
-
-// Phones have no joystick, so skip the game's "play with a joystick?" question.
-// The routine that asks it (track 11, sector 9) becomes: LDA #0 (keyboard), STA $9C84, RTS.
-const JOYSTICK_ASK = [0xad, 0x84, 0x9c, 0x10, 0x4e, 0xa9], NO_JOYSTICK = [0xa9, 0x00, 0x8d, 0x84, 0x9c, 0x60];
-function skipJoystickQuestion(dsk) {
-  const at = 11 * 4096 + 9 * 256 + 0xa1;
-  if (JOYSTICK_ASK.every((b, i) => dsk[at + i] === b)) dsk.set(NO_JOYSTICK, at);
-}
-
-// One big button does the job of both Space and Return, like it would have felt on the Apple:
-// the game's menu and Yes/No prompts wait for Return (they read the keyboard at these two spots);
-// everything else (munching, "Press SPACE BAR to continue") wants Space.
-const RETURN_READERS = new Set([0x1248, 0x1eb1]);
-const PLAY_READER = 0x9ad9;
-const munchKey = document.getElementById('munchKey');
-const bigKeyCode = () => RETURN_READERS.has(m.kbdPC) ? 13 : 32;
-function updateBigKey() {
-  const label = m.kbdPC === PLAY_READER && !m.halted ? 'Munch' : 'OK';
-  if (munchKey.dataset.label === label) return;
-  munchKey.dataset.label = label; munchKey.setAttribute('aria-label', label);
-  munchKey.innerHTML = ''; munchKey.appendChild(glyphLabel(label));
-}
-
-// the Hall of Fame asks the player to type a name; show a text box so the phone keyboard can do it
-const NAME_PROMPT = 1077539997;
-const nameBox = document.getElementById('nameBox'), nameInput = document.getElementById('nameInput'), dmain = document.getElementById('dmain');
-let typed = '';
-function watchNamePrompt() {
-  const asking = !m.text && m.hires && screenPrint(152, 160) === NAME_PROMPT;
-  if (asking && nameBox.hidden) { nameBox.hidden = false; dmain.hidden = true; nameInput.value = typed = ''; labelKeys(); labelName(); }
-  else if (!asking && !nameBox.hidden) closeName();
-}
-function closeName() { nameBox.hidden = true; dmain.hidden = false; nameInput.blur(); }
-nameInput.addEventListener('input', () => {
-  const v = nameInput.value.toUpperCase().replace(/[^ -~]/g, '');
-  let i = 0; while (i < typed.length && i < v.length && typed[i] === v[i]) i++;
-  for (let k = typed.length; k > i; k--) send(8);
-  for (const ch of v.slice(i)) send(ch.charCodeAt(0));
-  typed = v;
+DiskGame.start({
+  disk: 'munchers.dsk',
+  saveKey: 'munchers-disk',
+  // Phones have no joystick, so skip the game's "play with a joystick?" question.
+  // The routine that asks it (track 11, sector 9) becomes: LDA #0 (keyboard), STA $9C84, RTS.
+  patch(dsk) {
+    const at = 11 * 4096 + 9 * 256 + 0xa1, ask = [0xad, 0x84, 0x9c, 0x10, 0x4e, 0xa9];
+    if (ask.every((b, i) => dsk[at + i] === b)) dsk.set([0xa9, 0x00, 0x8d, 0x84, 0x9c, 0x60], at);
+  },
+  // One big button does the job of both Space and Return.
+  bigKey(m) {
+    const code = m.kbdPC === READ_MENU || m.kbdPC === READ_YES_NO ? 13 : 32;
+    return { code, label: m.kbdPC === READ_PLAY ? 'Munch' : 'OK' };
+  },
+  namePrompt: m => m.kbdPC === READ_NAME,
 });
-nameBox.addEventListener('submit', e => { e.preventDefault(); send(13); closeName(); });
-
-// ---------- sound: the speaker is a 1-bit click; turn its toggles into samples ----------
-let actx = null, playAt = 0, level = 0.2, hpX = 0, hpY = 0;
-function startAudio() {
-  if (actx) { if (actx.state === 'suspended') actx.resume(); return; }
-  const AC = window.AudioContext || window.webkitAudioContext;
-  if (!AC) return;
-  actx = new AC();
-}
-function playSpeaker(c0, c1) {
-  const spk = m.spk;
-  if (!actx || actx.state !== 'running') { m.spk = spk.filter(t => t >= c1); return; }
-  const now = spk.filter(t => t < c1);
-  m.spk = spk.filter(t => t >= c1);
-  if (!now.length && Math.abs(hpY) < 0.001) return;
-  const sr = actx.sampleRate, n = Math.max(1, Math.round((c1 - c0) / CPS * sr));
-  const buf = actx.createBuffer(1, n, sr), d = buf.getChannelData(0);
-  let j = 0;
-  for (let i = 0; i < n; i++) {
-    const t = c0 + (i / sr) * CPS;
-    while (j < now.length && now[j] <= t) { level = -level; j++; }
-    // high-pass so a speaker left "on" fades to silence instead of a DC offset
-    hpY = level - hpX + 0.995 * hpY; hpX = level; d[i] = hpY;
-  }
-  const t0 = actx.currentTime;
-  if (playAt < t0 + 0.02 || playAt > t0 + 0.3) playAt = t0 + 0.06;
-  const src = actx.createBufferSource(); src.buffer = buf; src.connect(actx.destination); src.start(playAt);
-  playAt += n / sr;
-}
-
-// if the emulator hits something it can't do, say so and let OK restart the game
-let haltShown = false;
-function showHalt() {
-  if (haltShown) return; haltShown = true;
-  console.error('emulator stopped:', m.halted);
-  m.text = true; m.mixed = false;
-  const msg = ['', '', '', '', '', '', '', '', '', '   SORRY, THE GAME STOPPED WORKING.', '', '   PRESS OK TO START IT AGAIN.'];
-  for (let a = 0x400; a < 0x800; a++) m.ram[a] = 0xa0;
-  const row = r => 0x400 + (r & 7) * 0x80 + (r >> 3) * 0x28;
-  msg.forEach((t, r) => [...t].forEach((ch, c) => { m.ram[row(r) + c] = ch.charCodeAt(0) | 0x80; }));
-}
-
-// ---------- main loop ----------
-let last = 0, flash = false, frames = 0;
-function frame(now) {
-  requestAnimationFrame(frame);
-  if (!m) return;
-  const dt = last ? Math.min(100, now - last) : 16.7; last = now;
-  if (keyQ.length && !(m.key & 0x80)) m.pressKey(keyQ.shift());
-  const c0 = m.cpu.cycles;
-  m.run(Math.round(dt * CPS / 1000));
-  playSpeaker(c0, m.cpu.cycles);
-  watchNamePrompt();
-  updateBigKey();
-  if (m.halted) showHalt();
-  if (++frames % 16 === 0) flash = !flash;
-  m.render(idata.data, FONT, flash);
-  offx.putImageData(idata, 0, 0);
-  cx.imageSmoothingEnabled = false;
-  cx.drawImage(off, 0, 0, cv.width, cv.height);
-}
-document.addEventListener('visibilitychange', () => { last = 0; });
-
-// ---------- controller ----------
-const stops = new Set();
-for (const b of document.querySelectorAll('.key:not(#nameOk)')) {
-  let t1 = null, t2 = null;
-  const codes = b.dataset.key ? b.dataset.key.split(',').map(Number) : null;
-  const fire = () => {
-    if (b.id === 'gamesKey') { location.href = '../'; return; }
-    if (!m) return;
-    if (m.halted) { if (b === munchKey) location.reload(); return; }
-    if (b === munchKey) { keyQ.length = 0; m.pressKey(bigKeyCode()); return; }
-    if (codes.length === 1) { keyQ.length = 0; m.pressKey(codes[0]); } else send(...codes);
-  };
-  const stop = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; b.classList.remove('pressed'); stops.delete(stop); };
-  b.addEventListener('pointerdown', e => {
-    e.preventDefault(); startAudio(); b.classList.add('pressed'); stops.add(stop); fire();
-    if ('rep' in b.dataset) t1 = setTimeout(() => { t2 = setInterval(fire, 180); }, 400);
-  });
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev => b.addEventListener(ev, stop));
-  b.addEventListener('keydown', e => { if (e.key === ' ' || e.key === 'Enter') { e.preventDefault(); fire(); } });
-}
-const stopAll = () => { for (const f of [...stops]) f(); };
-window.addEventListener('pointerup', stopAll);
-window.addEventListener('blur', stopAll);
-document.addEventListener('visibilitychange', stopAll);
-
-// a real keyboard works too (an Apple II+ only types capitals)
-window.addEventListener('keydown', e => {
-  if (e.target === nameInput) return;
-  if (e.target.closest && e.target.closest('.key') && (e.key === ' ' || e.key === 'Enter')) return;
-  startAudio();
-  const map = { ArrowLeft: 8, ArrowRight: 21, ArrowUp: 11, ArrowDown: 10, Enter: 13, Escape: 27, Backspace: 8, Delete: 127 };
-  let c = null;
-  if (e.ctrlKey && e.key.length === 1 && /[a-z]/i.test(e.key)) c = e.key.toUpperCase().charCodeAt(0) - 64;
-  else if (map[e.key] !== undefined) c = map[e.key];
-  else if (e.key.length === 1 && !e.metaKey && !e.altKey) c = e.key.toUpperCase().charCodeAt(0) & 0x7f;
-  if (c !== null && m) { e.preventDefault(); m.pressKey(c); }
-});
-document.addEventListener('gesturestart', e => e.preventDefault());
-
-new ResizeObserver(layout).observe(document.getElementById('screenwrap'));
-window.addEventListener('resize', layout);
-layout();
-requestAnimationFrame(frame);
-
-fetch('munchers.dsk').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }).then(buf => {
-  const dsk = new Uint8Array(buf);
-  skipJoystickQuestion(dsk);
-  orig = dsk.slice();
-  loadSaved(dsk);
-  m = new Apple2(dsk);
-  m.disk.onWrite = saveDisk;
-  m.boot();
-}).catch(() => {
-  const g = offx; g.fillStyle = '#000'; g.fillRect(0, 0, 280, 192); g.fillStyle = '#fff';
-  const t = "Couldn't load the game disk.";
-  [...t].forEach((ch, i) => { const gi = (ch.charCodeAt(0) - 32) * 8; for (let r = 0; r < 8; r++) for (let p = 0; p < 7; p++) if (FONT[gi + r] >> p & 1) g.fillRect(40 + i * 7 + p, 90 + r, 1, 1); });
-  cx.imageSmoothingEnabled = false; cx.drawImage(off, 0, 0, cv.width, cv.height);
-});
-
-if ('serviceWorker' in navigator && location.protocol === 'https:') {
-  navigator.serviceWorker.register('../sw.js', { scope: '../' }).catch(() => {});
-}
 </script>
 </body>
 </html>

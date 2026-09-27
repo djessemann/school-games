@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#d8d2c2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Games">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<title>Odell Lake</title>
+<meta name="description" content="Be a fish in Odell Lake, Oregon: eat, hide or escape, and survive. The 1986 MECC classic, on your phone.">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://djessemann.github.io/school-games/odell/">
+<link rel="stylesheet" href="../shared/disk-game.css">
+<style>
+/* the five choices for an encounter, laid out like the arrow pad they replace:
+   escape up to shallow water, escape down to deep water, and the three choices in between */
+.actions {
+  align-self: stretch; display: grid; gap: var(--gap);
+  grid-template-columns: repeat(3, 1fr); grid-template-areas: "up up up" "eat chase ignore" "down down down";
+}
+.actions .key { height: var(--pad-key-h); min-width: 0; padding: 4px; }
+.actions .eat { grid-area: eat; } .actions .chase { grid-area: chase; } .actions .ignore { grid-area: ignore; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="screenwrap"><canvas id="screen" width="280" height="192" aria-label="Game screen"></canvas></div>
+  <div id="deck">
+    <div id="dmain">
+      <div class="dpad">
+        <button class="key up" type="button" data-key="11" data-rep aria-label="Up" data-label="#"></button>
+        <button class="key left" type="button" data-key="8" data-rep aria-label="Left" data-label="&"></button>
+        <button class="key right" type="button" data-key="21" data-rep aria-label="Right" data-label="{"></button>
+        <button class="key down" type="button" data-key="10" data-rep aria-label="Down" data-label="$"></button>
+      </div>
+      <div class="actions" hidden>
+        <button class="key up" type="button" data-key="83" aria-label="Shallow escape" data-label="# Shallow escape"></button>
+        <button class="key eat" type="button" data-group="choices" data-key="69" aria-label="Eat" data-label="Eat"></button>
+        <button class="key chase" type="button" data-group="choices" data-key="67" aria-label="Chase away" data-label="Chase"></button>
+        <button class="key ignore" type="button" data-group="choices" data-key="73" aria-label="Ignore" data-label="Ignore"></button>
+        <button class="key down" type="button" data-key="68" aria-label="Deep escape" data-label="$ Deep escape"></button>
+      </div>
+      <button id="bigKey" class="key" type="button" aria-label="OK" data-label="OK"></button>
+    </div>
+    <form id="nameBox" hidden autocomplete="off">
+      <div id="nameLabel" aria-hidden="true"></div>
+      <div class="row">
+        <input id="nameInput" type="text" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="characters" spellcheck="false" enterkeyhint="done" aria-label="Your name for the High Score List">
+        <button id="nameOk" class="key" type="submit" aria-label="OK" data-label="OK"></button>
+      </div>
+    </form>
+    <div id="dbar" data-row>
+      <button id="gamesKey" class="key" type="button" aria-label="Back to all games" data-label="Games"></button>
+      <button class="key" type="button" data-key="63" aria-label="Help" data-label="Help"></button>
+      <button class="key" type="button" data-key="27" aria-label="Back" data-label="Back"></button>
+    </div>
+  </div>
+</div>
+<script src="../shared/font.js"></script>
+<script src="../shared/cpu6502.js"></script>
+<script src="../shared/apple2.js"></script>
+<script src="../shared/disk-game.js"></script>
+<script>
+'use strict';
+// Where the game reads the keyboard tells us what it is waiting for:
+const READ_ENCOUNTER = 0x8445;   // an animal or plant ahead: Eat, Chase away, Ignore, Shallow or Deep escape
+const READ_OUTCOME = 0x1586;     // what happened, "Press SPACE BAR to continue"
+const READ_NAME = 0x6144;        // High Score List name entry
+// Every other screen is a menu or a "Press Space Bar" page, and Return works on all of them.
+
+const dpad = document.querySelector('.dpad'), actions = document.querySelector('.actions');
+DiskGame.start({
+  disk: 'odell.dsk',
+  saveKey: 'odell-disk',
+  bigKey: () => ({ code: 13, label: 'OK' }),
+  namePrompt: m => m.kbdPC === READ_NAME,
+  // during an encounter the arrow pad makes way for the five choices
+  onFrame(m) {
+    const meeting = m.kbdPC === READ_ENCOUNTER || m.kbdPC === READ_OUTCOME;
+    if (meeting === actions.hidden) {
+      actions.hidden = !meeting; dpad.hidden = meeting;
+      DiskGame.labelKeys();
+    }
+  },
+});
+</script>
+</body>
+</html>
