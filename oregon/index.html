@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#d8d2c2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Games">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="format-detection" content="telephone=no">
+<title>The Oregon Trail</title>
+<meta name="description" content="Lead a wagon party from Missouri to Oregon in 1848. The 1985 MECC classic, on your phone.">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<link rel="canonical" href="https://djessemann.github.io/school-games/oregon/">
+<link rel="stylesheet" href="../shared/disk-game.css">
+<style>
+/* number keys for the game's numbered menus and amounts, laid out like a phone keypad */
+.numpad, .aimpad { display: grid; gap: var(--gap); grid-template-columns: repeat(3, var(--pad-key-w)); }
+.numpad .key, .aimpad .key { height: var(--pad-key-h); min-width: 0; padding: 4px; }
+.numpad .zero { grid-column: 2; }
+/* Yes / No, in place of the keypad, for the game's yes-or-no questions */
+.yesno { align-self: stretch; display: grid; gap: var(--gap); grid-template-columns: 1fr 1fr; }
+.yesno .key { height: calc(var(--pad-key-h) * 2); min-width: 0; }
+#nameInput { text-transform: none; }
+@media (orientation: portrait) and (max-height: 600px) {
+  :root { --pad-key-h: 42px; }
+  .numpad, .aimpad { gap: 5px; }
+  #dmain { gap: var(--gap); }
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="screenwrap"><canvas id="screen" width="280" height="192" aria-label="Game screen"></canvas></div>
+  <div id="deck">
+    <div id="dmain">
+      <div class="numpad">
+        <button class="key" type="button" data-group="num" data-key="49" aria-label="1" data-label="1"></button>
+        <button class="key" type="button" data-group="num" data-key="50" aria-label="2" data-label="2"></button>
+        <button class="key" type="button" data-group="num" data-key="51" aria-label="3" data-label="3"></button>
+        <button class="key" type="button" data-group="num" data-key="52" aria-label="4" data-label="4"></button>
+        <button class="key" type="button" data-group="num" data-key="53" aria-label="5" data-label="5"></button>
+        <button class="key" type="button" data-group="num" data-key="54" aria-label="6" data-label="6"></button>
+        <button class="key" type="button" data-group="num" data-key="55" aria-label="7" data-label="7"></button>
+        <button class="key" type="button" data-group="num" data-key="56" aria-label="8" data-label="8"></button>
+        <button class="key" type="button" data-group="num" data-key="57" aria-label="9" data-label="9"></button>
+        <button class="key zero" type="button" data-group="num" data-key="48" aria-label="0" data-label="0"></button>
+        <button class="key" type="button" data-key="8" data-rep aria-label="Delete" data-label="Del"></button>
+      </div>
+      <!-- hunting: the game's eight "expert" aiming keys (I O P / K ; / , . /) around the fire button -->
+      <div class="aimpad" hidden>
+        <button class="key" type="button" data-key="73" aria-label="Aim up and left" data-label="&#x2196;"></button>
+        <button class="key" type="button" data-key="79" aria-label="Aim up" data-label="#"></button>
+        <button class="key" type="button" data-key="80" aria-label="Aim up and right" data-label="&#x2197;"></button>
+        <button class="key" type="button" data-key="75" aria-label="Aim left" data-label="&amp;"></button>
+        <button class="key" type="button" data-key="32" aria-label="Fire" data-label="Fire"></button>
+        <button class="key" type="button" data-key="59" aria-label="Aim right" data-label="{"></button>
+        <button class="key" type="button" data-key="44" aria-label="Aim down and left" data-label="&#x2199;"></button>
+        <button class="key" type="button" data-key="46" aria-label="Aim down" data-label="$"></button>
+        <button class="key" type="button" data-key="47" aria-label="Aim down and right" data-label="&#x2198;"></button>
+      </div>
+      <div class="yesno" hidden>
+        <button class="key" type="button" data-group="yn" data-key="89,13" aria-label="Yes" data-label="Yes"></button>
+        <button class="key" type="button" data-group="yn" data-key="78,13" aria-label="No" data-label="No"></button>
+      </div>
+      <button id="bigKey" class="key" type="button" aria-label="OK" data-label="OK"></button>
+    </div>
+    <form id="nameBox" hidden autocomplete="off">
+      <div id="nameLabel" aria-hidden="true"></div>
+      <div class="row">
+        <input id="nameInput" type="text" maxlength="20" autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" enterkeyhint="done" aria-label="Your answer">
+        <button id="nameOk" class="key" type="submit" aria-label="OK" data-label="OK"></button>
+      </div>
+    </form>
+    <div id="dbar" data-row>
+      <button id="gamesKey" class="key" type="button" aria-label="Back to all games" data-label="Games"></button>
+    </div>
+  </div>
+</div>
+<script src="../shared/font.js"></script>
+<script src="../shared/cpu6502.js"></script>
+<script src="../shared/apple2.js"></script>
+<script src="../shared/disk-game.js"></script>
+<script>
+'use strict';
+// The game is written in Applesoft BASIC. Every typed answer goes through MECC's "& INP" command, whose
+// second argument lists the keys it accepts: digits, "YESNO", or letters for names. We read that
+// statement out of memory while the game waits, and show the matching keys.
+const GET_KEY = 0x6208;    // the key reader under & INP
+const STORE_ITEM = 0x86f4; // Matt's store: "Which item would you like to buy?" (Space leaves the store)
+const HUNT = 0xec24;       // the hunting scene
+const line = m => m.ram[0x75] | m.ram[0x76] << 8;   // the BASIC line that is running
+
+function inpSpec(m) {
+  const tp = m.ram[0xb8] | m.ram[0xb9] << 8;          // BASIC's text pointer is inside the & INP statement
+  for (let a = tp; a > tp - 80; a--) {
+    if (m.ram[a] !== 0xaf || String.fromCharCode(m.ram[a + 1], m.ram[a + 2], m.ram[a + 3]) !== 'INP') continue;
+    let s = ''; for (let b = a + 4; b < tp; b++) s += String.fromCharCode(m.ram[b] & 0x7f);
+    const q = s.match(/"([^"]*)"/), n = s.match(/^,(\d+),/);
+    return { keys: q ? q[1] : '', max: n ? +n[1] : 0 };
+  }
+  return null;
+}
+function mode(m) {
+  if (m.kbdPC === HUNT) return 'hunt';
+  if (m.kbdPC === GET_KEY) {
+    const spec = inpSpec(m);
+    if (spec && spec.keys.includes('YESNO')) return 'yesno';
+    if (spec && spec.keys.includes('AZ')) return 'text';
+  }
+  return 'num';
+}
+
+const pads = { num: document.querySelector('.numpad'), hunt: document.querySelector('.aimpad'), yesno: document.querySelector('.yesno') };
+let shown = 'num';
+DiskGame.start({
+  disks: ['side-a.dsk', 'side-b.dsk'],
+  rom: true,                 // Applesoft BASIC lives in the Apple's ROM
+  saveKey: 'oregon-disk',
+  bigKey(m) {
+    if (m.kbdPC === HUNT) return { code: 13, label: 'Walk / Stop' };
+    if (m.kbdPC === STORE_ITEM && line(m) === 252) return { code: 32, label: 'Leave store' };
+    return { code: 13, label: 'OK' };
+  },
+  // names, the Top Ten and tombstones: the phone keyboard. An empty answer is fine (the game picks names).
+  namePrompt(m) {
+    if (mode(m) !== 'text') return false;
+    const spec = inpSpec(m), max = spec && spec.max ? spec.max : 20;
+    return { label: max > 20 ? 'Type the words, then OK' : 'Type a name, then OK', max };
+  },
+  nameEmptyOk: true,
+  nameKeepCase: true,        // the game prints lowercase, so "Jesse" stays "Jesse"
+  onFrame(m) {
+    // The game was made for one drive and asks you to flip the disk. Its hard-disk setup reads each side
+    // from its own drive instead, so point side 2 at drive 2 (and accept any volume number): no flipping.
+    if (m.ram[0x3bb] === 0xfe && m.ram[0x3bd] === 1) { m.ram[0x3bb] = 0; m.ram[0x3bd] = 2; m.ram[0x3be] = 0; }
+    const want = mode(m) === 'text' ? shown : mode(m);
+    if (want !== shown) {
+      for (const k in pads) pads[k].hidden = k !== want;
+      shown = want;
+      DiskGame.labelKeys();
+    }
+  },
+});
+</script>
+</body>
+</html>

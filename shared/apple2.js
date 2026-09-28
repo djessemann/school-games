@@ -1,5 +1,6 @@
 // A small Apple II+ (48K + language card) with a Disk II card and one or two drives.
-// No Apple ROMs: the few monitor routines the software calls are done in JS (HLE) or tiny stubs.
+// By default no Apple ROMs: the few monitor routines the software calls are done in JS (HLE) or tiny stubs.
+// Games written in Applesoft BASIC need the real ROM, which a page can pass in (opts.rom).
 (function (root) {
   'use strict';
   const CPU = root.CPU6502 || (typeof require !== 'undefined' && require('./cpu6502.js'));
@@ -133,7 +134,11 @@
         return 0;
       }
       const b = tr[this.pos];
+      // Sync bytes are 10 bits long on a real disk, so between two of them the latch briefly shows a
+      // half-shifted value. DOS 3.3 relies on that to tell a spinning disk from a stopped one.
+      if (b === 0xff && this.last === 0xff) { this.last = 0x7f; return 0x7f; }
       this.pos = (this.pos + 1) % tr.length;
+      this.last = b;
       return b;
     }
     if (s === 0xe && this.q6 && !this.q7) return 0; // write protect sense: not protected
@@ -194,6 +199,8 @@
 
   // ---------- the machine ----------
   // opts.model: 'ii+' (48K + language card, the default) or 'iie' (128K: an Apple IIe with the extended 80-column card)
+  // opts.rom / opts.diskRom: real ROM images ($D000-$FFFF and the Disk II card's $C600 page), for games written
+  // in Applesoft BASIC, which lives in the ROM. Without them the machine runs on the stubs below.
   function Apple2(dskBytes, dsk2Bytes, opts) {
     this.iie = !!(opts && opts.model === 'iie');
     this.ram = new Uint8Array(0x10000);
@@ -212,7 +219,9 @@
     this.key = 0; this.text = true; this.mixed = false; this.page2 = false; this.hires = false;
     this.spk = []; this.halted = null; this.hle = {};
     this.cpu = new CPU(a => this.read(a), (a, v) => this.write(a, v));
-    this.initRom();
+    this.realRom = !!(opts && opts.rom);
+    this.slot6 = SLOT6;
+    if (this.realRom) { this.rom.set(opts.rom); this.slot6 = opts.diskRom; } else this.initRom();
   }
   const A = Apple2.prototype;
 
@@ -230,7 +239,7 @@
     if (a < 0x200) return (this.altzp ? this.aux : this.ram)[a];
     if (a < 0xc000) return this.bank(a, false)[a];
     if (a < 0xc100) return this.io(a, 0, false);
-    if (a < 0xd000) return (a >> 8) === 0xc6 && !this.intcx ? SLOT6[a & 0xff] : 0;
+    if (a < 0xd000) return (a >> 8) === 0xc6 && !this.intcx ? this.slot6[a & 0xff] : 0;
     if (this.lcRead) return this.lcMem(a)[a & (a >= 0xe000 ? 0x1fff : 0x0fff)];
     return this.rom[a - 0xd000];
   };
@@ -259,8 +268,9 @@
         }
         return 0;
       }
-      if (!isWrite) {
-        // remember which code is reading the keyboard, and who called it (the JSR under the top of the stack)
+      // remember which code is reading the keyboard, and who called it (the JSR under the top of the stack);
+      // Applesoft's check for Ctrl-C between statements isn't a wait for input, so it doesn't count
+      if (!isWrite && !(this.realRom && this.cpu.pc === 0xd85b)) {
         this.kbdPC = this.cpu.pc;
         const sp = this.cpu.s;
         this.kbdCaller = ((this.read(0x100 | ((sp + 2) & 0xff)) << 8 | this.read(0x100 | ((sp + 1) & 0xff))) - 2) & 0xffff;
@@ -462,7 +472,7 @@
     this.idle = false;
     while (c.cycles < end && !this.halted) {
       const pc = c.pc;
-      if (pc >= 0xc100) {
+      if (pc >= 0xc100 && !this.realRom) {
         const h = H[pc];
         if (pc < 0xd000 || !this.lcRead) {
           if (h) { h(c); if (this.idle) break; continue; }
@@ -481,6 +491,7 @@
   };
   // power-on: what the monitor's RESET does before the Autostart ROM boots slot 6
   A.boot = function () {
+    if (this.realRom) { this.cpu.pc = this.rom[0x2ffc] | this.rom[0x2ffd] << 8; this.cpu.s = 0xff; return; }   // the real RESET
     const r = this.ram;
     r[0x20] = 0; r[0x21] = 40; r[0x22] = 0; r[0x23] = 24; r[0x32] = 0xff;
     r[0x36] = 0xf0; r[0x37] = 0xfd; r[0x38] = 0x1b; r[0x39] = 0xfd;

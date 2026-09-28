@@ -7,7 +7,11 @@
 //     saveKey: 'game-disk',        // where changed sectors (high scores, saved games) are kept in the browser
 //     patch(dsk) {},               // optional: change the disk before it boots
 //     bigKey(m) { return { code: 13, label: 'OK' }; },   // what the big bar sends right now
-//     namePrompt(m) { return false; },  // true while the game waits for a typed name
+//     rom: true,                   // load the real Apple II+ ROM (for games written in Applesoft BASIC)
+//     namePrompt(m) { return false; },  // true while the game waits for a typed name,
+//                                       // or { label: 'Type a name, then OK', max: 20 } to say more
+//     nameEmptyOk: false,          // let OK send an empty answer (when the game fills in a default)
+//     nameKeepCase: false,         // send lowercase as typed (for games with their own lowercase text)
 //     onFrame(m) {},               // optional: per-frame hook, e.g. to switch deck layouts
 //     speed(m) { return 1; },      // optional: run the machine faster for a while (fast-forward)
 //   bigKey may also return { press(m) {} } to do something other than send a key.
@@ -45,6 +49,11 @@
 
   // ---------- key labels, drawn in the Apple II font ----------
   function ink() { return getComputedStyle(document.documentElement).getPropertyValue('--key-ink').trim() || '#000'; }
+  // a few extra glyphs for key labels: the diagonal arrows (rows top to bottom, bit 0 is the leftmost pixel)
+  const UL = [0x0f, 0x07, 0x0f, 0x1d, 0x38, 0x70, 0x20, 0x00];
+  const mirror = r => { let o = 0; for (let p = 0; p < 7; p++) if (r >> p & 1) o |= 1 << (6 - p); return o; };
+  const EXTRA = { '\u2196': UL, '\u2197': UL.map(mirror), '\u2199': [...UL.slice(0, 7)].reverse().concat(0), '\u2198': [...UL.slice(0, 7)].reverse().map(mirror).concat(0) };
+  const glyphRow = (ch, r) => EXTRA[ch] ? EXTRA[ch][r] : FONT[(ch.charCodeAt(0) - 32) * 8 + r];
   function glyphLabel(text, maxW) {
     const dpr = window.devicePixelRatio || 1;
     let k = Math.round(2 * dpr);
@@ -54,8 +63,7 @@
     c.style.width = (c.width / dpr) + 'px'; c.style.height = (c.height / dpr) + 'px';
     const g = c.getContext('2d'); g.fillStyle = ink();
     [...text].forEach((ch, i) => {
-      const gi = (ch.charCodeAt(0) - 32) * 8;
-      for (let r = 0; r < 8; r++) { const b = FONT[gi + r]; for (let p = 0; p < 7; p++) if (b >> p & 1) g.fillRect((i * 7 + p) * k, r * k, k, k); }
+      for (let r = 0; r < 8; r++) { const b = glyphRow(ch, r); for (let p = 0; p < 7; p++) if (b >> p & 1) g.fillRect((i * 7 + p) * k, r * k, k, k); }
     });
     return c;
   }
@@ -76,7 +84,7 @@
   function labelKeys() {
     for (const b of document.querySelectorAll('.key[data-label]')) if (b.offsetParent) setLabel(b, b.dataset.label);
     const nl = $('nameLabel');
-    if (nl && nl.offsetParent) { nl.innerHTML = ''; nl.appendChild(glyphLabel('Type your name, then OK', nl.clientWidth)); }
+    if (nl && nl.offsetParent) { nl.innerHTML = ''; nl.appendChild(glyphLabel(nameText, nl.clientWidth)); }
   }
 
   // ---------- saved disk changes (high scores) ----------
@@ -98,10 +106,14 @@
 
   // ---------- name entry: show a text box so the phone keyboard can type ----------
   const nameBox = $('nameBox'), nameInput = $('nameInput'), dmain = $('dmain');
-  let typed = '', submitted = false;
+  let typed = '', submitted = false, nameText = 'Type your name, then OK';
   function watchNamePrompt() {
     if (!nameBox) return;
     let asking = !m.halted && cfg.namePrompt && cfg.namePrompt(m);
+    if (asking && nameBox.hidden && typeof asking === 'object') {
+      nameText = asking.label || 'Type your name, then OK';
+      if (asking.max) nameInput.maxLength = asking.max;
+    }
     // after OK, the game can still be sitting in its name reader for a moment; don't reopen until it leaves
     if (!asking) submitted = false; else if (submitted) asking = false;
     if (asking && nameBox.hidden) { nameBox.hidden = false; dmain.hidden = true; nameInput.value = typed = ''; labelKeys(); }
@@ -110,7 +122,7 @@
   function closeName() { nameBox.hidden = true; dmain.hidden = false; nameInput.blur(); labelKeys(); }
   if (nameBox) {
     nameInput.addEventListener('input', () => {
-      const v = nameInput.value.toUpperCase().replace(/[^ -~]/g, '');
+      const v = (cfg.nameKeepCase ? nameInput.value : nameInput.value.toUpperCase()).replace(/[^ -~]/g, '');
       let i = 0; while (i < typed.length && i < v.length && typed[i] === v[i]) i++;
       for (let k = typed.length; k > i; k--) send(8);
       for (const ch of v.slice(i)) send(ch.charCodeAt(0));
@@ -118,7 +130,7 @@
     });
     nameBox.addEventListener('submit', e => {
       e.preventDefault();
-      if (!typed.trim()) { nameInput.focus(); return; }   // the game wants a name; keep the box open
+      if (!typed.trim() && !cfg.nameEmptyOk) { nameInput.focus(); return; }   // the game wants a name; keep the box open
       send(13); submitted = true; closeName();
     });
   }
@@ -241,13 +253,14 @@
     window.addEventListener('resize', layout);
     layout();
     requestAnimationFrame(frame);
-    const paths = [].concat(cfg.disks || cfg.disk);
-    Promise.all(paths.map(p => fetch(p).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }))).then(bufs => {
-      const dsks = bufs.map(b => new Uint8Array(b));
+    const paths = [].concat(cfg.disks || cfg.disk), roms = cfg.rom ? ['../shared/roms/apple2plus.rom', '../shared/roms/disk2.rom'] : [];
+    Promise.all([...paths, ...roms].map(p => fetch(p).then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }))).then(bufs => {
+      const dsks = bufs.slice(0, paths.length).map(b => new Uint8Array(b));
+      const [rom, diskRom] = bufs.slice(paths.length).map(b => new Uint8Array(b));
       if (cfg.patch) cfg.patch(dsks[0], dsks);
       origs = dsks.map(d => d.slice());
       dsks.forEach((d, i) => loadSaved(d, i));
-      m = new Apple2(dsks[0], dsks[1], { model: cfg.model });
+      m = new Apple2(dsks[0], dsks[1], { model: cfg.model, rom, diskRom });
       m.drives.forEach((d, i) => { d.onWrite = dsk => saveDisk(dsk, i); });
       m.boot();
       window.m = m;   // handy for poking at it from the console

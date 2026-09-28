@@ -10,6 +10,7 @@ The home page is a portal. Each game lives in its own folder.
 | --- | --- |
 | Planetary Construction Set | `planets/` |
 | Word Munchers (MECC, 1985) | `munchers/` |
+| The Oregon Trail (MECC, 1985) | `oregon/` |
 | Odell Lake (MECC, 1986) | `odell/` |
 | Where in the World Is Carmen Sandiego? (Broderbund, 1985) | `carmen/` |
 
@@ -17,10 +18,12 @@ On iPhone: open the link in Safari, tap Share, then **Add to Home Screen**. It r
 
 ## The Apple II disk games
 
-Word Munchers, Odell Lake and Carmen Sandiego run their original Apple II disks on a small emulator written for this site, in `shared/`:
+Word Munchers, The Oregon Trail, Odell Lake and Carmen Sandiego run their original Apple II disks on a small emulator written for this site, in `shared/`:
 `cpu6502.js` is the processor, `apple2.js` is the rest of the machine (memory, disk drive, keyboard, speaker, screen),
 and `disk-game.js` / `disk-game.css` are the page around it (screen, controller, sound, saving high scores, name entry).
-It uses no Apple ROMs; the few built-in routines the games call are rewritten in `apple2.js`.
+Most games need no Apple ROMs; the few built-in routines they call are rewritten in `apple2.js`. The Oregon Trail is
+written in Applesoft BASIC, which lives in the ROM, so its page loads the real Apple II+ and Disk II ROMs from `shared/roms/`
+(taken from the AppleWin project).
 It can be an Apple II+ (48K) or an Apple IIe with 128K, has two disk drives, and starts ProDOS disks by loading the
 PRODOS file itself (a ProDOS boot block would otherwise copy code out of the disk card's ROM).
 
@@ -30,6 +33,12 @@ and a text box appears for the phone keyboard when a game asks for a name.
 
 **Word Munchers:** arrows, the big button (Space while playing and on "Press SPACE BAR" screens, Return on the menu and
 Yes/No prompts), Pause (?) and Quit (Escape twice). The "play with a joystick?" question is patched out when the disk loads.
+
+**The Oregon Trail:** two disk sides, both in the drives at once (the game's own hard-disk setup reads side 2 from drive 2,
+so it never asks you to flip the disk). A number keypad and OK (Return) answer its numbered menus and amounts; in the store,
+the big button leaves the store until you pick an item. Yes/No questions get Yes and No buttons, names and tombstones get
+the text box, and hunting swaps the keypad for eight aiming arrows around Fire, with the big button to walk or stop.
+The page reads MECC's `& INP` statement out of memory to see which keys the game will take.
 
 **Carmen Sandiego:** a 128K IIe game on two disk sides, both in the drives at once. Arrows move the highlight, OK is
 Return, Back is Escape. For (Y/N) questions the arrows make way for Yes and No, and the name prompt gets the name box.
