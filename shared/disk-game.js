@@ -188,6 +188,7 @@
   function frame(now) {
     requestAnimationFrame(frame);
     if (!m) return;
+    if (window.Portrait && Portrait.turned()) { last = 0; return; }   // phone on its side: paused behind the note
     const dt = last ? Math.min(100, now - last) : 16.7; last = now;
     if (keyQ.length && !(m.key & 0x80)) m.pressKey(keyQ.shift());
     const c0 = m.cpu.cycles, speed = cfg.speed ? cfg.speed(m) : 1;
@@ -230,6 +231,7 @@
     window.addEventListener('pointerup', stopAll);
     window.addEventListener('blur', stopAll);
     document.addEventListener('visibilitychange', stopAll);
+    if (window.Portrait) Portrait.onChange(stopAll);
   }
 
   // a real keyboard works too (an Apple II+ only types capitals)

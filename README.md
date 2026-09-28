@@ -16,6 +16,10 @@ The home page is a portal. Each game lives in its own folder.
 
 On iPhone: open the link in Safari, tap Share, then **Add to Home Screen**. It runs full screen and works offline after the first load.
 
+Everything is laid out for a phone held upright. iPhone browsers can't lock rotation, so `shared/portrait.js` covers the
+page with "Turn your phone upright to play" when a phone is turned sideways, and the games pause until it's upright again.
+On a computer the same layout sits in a phone-width column.
+
 ## The Apple II disk games
 
 Word Munchers, The Oregon Trail, Odell Lake and Carmen Sandiego run their original Apple II disks on a small emulator written for this site, in `shared/`:

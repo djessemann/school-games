@@ -26,7 +26,7 @@
 .yesno { align-self: stretch; display: grid; gap: var(--gap); grid-template-columns: 1fr 1fr; }
 .yesno .key { height: calc(var(--pad-key-h) * 2); min-width: 0; }
 #nameInput { text-transform: none; }
-@media (orientation: portrait) and (max-height: 600px) {
+@media (max-height: 600px) {
   :root { --pad-key-h: 42px; }
   .numpad, .aimpad { gap: 5px; }
   #dmain { gap: var(--gap); }
@@ -82,6 +82,7 @@
   </div>
 </div>
 <script src="../shared/font.js"></script>
+<script src="../shared/portrait.js"></script>
 <script src="../shared/cpu6502.js"></script>
 <script src="../shared/apple2.js"></script>
 <script src="../shared/disk-game.js"></script>

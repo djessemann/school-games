@@ -7,15 +7,16 @@
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; height: 100%; background: var(--page); overflow: hidden; overscroll-behavior: none; }
 body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: manipulation; }
+/* always the upright phone layout; on a wide screen it sits in a phone-width column (shared/portrait.js covers a phone turned sideways) */
 #app {
-  position: fixed; inset: 0; display: flex; flex-direction: column;
+  position: fixed; inset: 0; display: flex; flex-direction: column; width: 100%; max-width: 480px; margin: 0 auto;
   padding: calc(env(safe-area-inset-top, 0px) + var(--gap) + 6px) calc(env(safe-area-inset-right, 0px) + var(--gap))
            calc(env(safe-area-inset-bottom, 0px) + var(--gap)) calc(env(safe-area-inset-left, 0px) + var(--gap));
   gap: var(--gap);
 }
 #screenwrap {
   flex: 0 1 auto; min-height: 0; display: flex; align-items: center; justify-content: center;
-  background: #000; border: 6px solid var(--bezel); height: calc((100vw - 28px) * 192 / 280 + 12px); max-height: 56vh;
+  background: #000; border: 6px solid var(--bezel); height: calc((min(100vw, 480px) - 28px) * 192 / 280 + 12px); max-height: 56vh;
 }
 #screen { display: block; image-rendering: pixelated; image-rendering: crisp-edges; touch-action: none; }
 #deck { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: var(--gap); }
@@ -39,26 +40,11 @@ body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none
 .up { grid-area: up; } .down { grid-area: down; } .left { grid-area: left; } .right { grid-area: right; }
 /* the big bar under the pad (Munch / OK) */
 #bigKey { align-self: stretch; height: var(--pad-key-h); }
-/* landscape: controls to the right of the screen */
-@media (orientation: landscape) {
-  #app { flex-direction: row; padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap)); }
-  #screenwrap { flex: 1 1 auto; height: auto; max-height: none; }
-  #deck { flex: 0 0 min(360px, 45vw); }
-  #dmain { gap: var(--gap); }
-  :root { --pad-key-w: 60px; --pad-key-h: 50px; }
-}
-@media (orientation: landscape) and (max-height: 420px) {
-  :root { --pad-key-w: 56px; --pad-key-h: 42px; }
-  .key { min-height: 40px; }
-  .dpad { gap: 6px; }
-  #bigKey { height: 44px; }
-  #dbar .key { min-height: 44px; }
-}
-@media (orientation: portrait) and (min-height: 701px) {
+@media (min-height: 701px) {
   #app { padding-top: calc(env(safe-area-inset-top, 0px) + var(--gap) + 28px); }
   :root { --pad-key-w: 74px; --pad-key-h: 62px; }
 }
-@media (orientation: portrait) and (max-height: 700px) {
+@media (max-height: 700px) {
   :root { --pad-key-h: 48px; }
   .dpad { gap: 6px; }
   #bigKey { height: 50px; }

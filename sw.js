@@ -2,10 +2,10 @@
 // up right away) and falls back to the cached copy when offline. Icons and other
 // files are served from cache and refreshed in the background.
 // One worker for the whole portal. When you add a game, add its page and icon here.
-const CACHE = 'games-v7';
+const CACHE = 'games-v8';
 const FILES = [
   './', 'index.html', 'manifest.webmanifest',
-  'shared/font.js', 'shared/cpu6502.js', 'shared/apple2.js', 'shared/disk-game.js', 'shared/disk-game.css', 'shared/roms/apple2plus.rom', 'shared/roms/disk2.rom',
+  'shared/font.js', 'shared/portrait.js', 'shared/cpu6502.js', 'shared/apple2.js', 'shared/disk-game.js', 'shared/disk-game.css', 'shared/roms/apple2plus.rom', 'shared/roms/disk2.rom',
   'icons/apple-touch-icon.png', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/favicon-32.png',
   'planets/', 'planets/index.html', 'planets/icons/icon-192.png', 'planets/icons/favicon-32.png', 'planets/icons/apple-touch-icon.png',
   'munchers/', 'munchers/index.html', 'munchers/munchers.dsk', 'munchers/icons/icon-192.png', 'munchers/icons/favicon-32.png',
